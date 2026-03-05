@@ -1527,7 +1527,7 @@ local CreateMonsterEntry = function(nodeid)
             {
                 valign = 'top',
                 bgcolor = '#ffffff00',
-                width = 300,
+                width = "100%",
                 height = BestiaryPanelHeight,
                 borderWidth = 0,
                 borderColor = 'black',
@@ -1551,6 +1551,7 @@ local CreateMonsterEntry = function(nodeid)
             {
                 selectors = { "monsterEntry", 'hover' },
                 bgcolor = Styles.textColor,
+                brightness = 0.8,
             },
 
         },
@@ -2346,7 +2347,7 @@ CreateBestiaryNode = function(node)
 end
 
 --similar to a bestiary entry but is an entry for a live character.
-CharacterPanel.CreateCharacterEntry = function(charid)
+CharacterPanel.CreateCharacterEntry = function(charid, party)
     local token = dmhub.GetCharacterById(charid)
     local creature = token.properties
 
@@ -2387,7 +2388,7 @@ CharacterPanel.CreateCharacterEntry = function(charid)
                 color = '#ccccccff',
                 valign = 'top',
                 bgcolor = '#ffffff00',
-                width = 300,
+                width = "100%",
                 height = BestiaryPanelHeight,
                 borderWidth = 0,
                 borderColor = 'black',
@@ -2417,6 +2418,7 @@ CharacterPanel.CreateCharacterEntry = function(charid)
             {
                 selectors = { 'hover' },
                 bgcolor = Styles.textColor,
+                brightness = 0.8,
             },
 
         },
@@ -2578,6 +2580,19 @@ CharacterPanel.CreateCharacterEntry = function(charid)
                 }
 
 
+                --party settings.
+                local tok = dmhub.GetCharacterById(charid)
+                local tokenPartyId = tok ~= nil and tok.partyId
+                if tokenPartyId then
+                    menuItems[#menuItems + 1] = {
+                        text = "Party Settings",
+                        click = function(element)
+                            Compendium.ShowModalEditDialog(Party, tokenPartyId)
+                            parentElement.popup = nil
+                        end,
+                    }
+                end
+
                 --delete the token.
                 menuItems[#menuItems + 1] = {
                     text = "Delete Character",
@@ -2681,7 +2696,7 @@ CharacterPanel.PopulatePartyMembers = function(element, party, partyMembers, mem
     local newMemberPanes = {}
 
     for _, charid in ipairs(partyMembers) do
-        local child = memberPanes[charid] or CharacterPanel.CreateCharacterEntry(charid)
+        local child = memberPanes[charid] or CharacterPanel.CreateCharacterEntry(charid, party)
         newMemberPanes[charid] = child
         child:FireEventTree("prepareRefresh")
         children[#children + 1] = child
