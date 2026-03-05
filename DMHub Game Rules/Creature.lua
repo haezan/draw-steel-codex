@@ -9611,7 +9611,7 @@ function creature:Render(args, options)
 				maxWidth = 128,
 				maxHeight = 128,
 				bgcolor = "white",
-				bgimage = token.portrait,
+				bgimage = (token.offTokenPortrait ~= nil and token.offTokenPortrait ~= "") and token.offTokenPortrait or token.portrait,
 
 				loadingImage = function(element)
 					element:AddChild(gui.LoadingIndicator{})
