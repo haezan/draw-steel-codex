@@ -70,8 +70,9 @@ local g_boonsBanesStyles = {
         bgcolor = Styles.RichBlack03,
         borderWidth = 1,
         borderColor = Styles.Gold02,
-        cornerRadius = 6,
+        cornerRadius = 3,
         hpad = 6,
+        hmargin = 2,
         vmargin = 2,
     },
     gui.Style{
@@ -121,7 +122,7 @@ local g_boonsBanesStyles = {
     },
 }
 
-local g_boonsLabels = { "BANEx2", "BANE", "NONE", "EDGE", "EDGEx2" }
+local g_boonsLabels = { "BANE", "BANE", "X", "EDGE", "EDGE" }
 
 local g_modifierPanelStyles = {
     gui.Style{
@@ -565,6 +566,7 @@ function GameHud.CreateEmbeddedRollDialog()
     local m_rollResults
     local m_customContainer
     local m_tableContainer
+    local m_rollTotalLabel
 
         --tab panel
     local m_rollResultsTab = gui.Panel{
@@ -974,7 +976,7 @@ function GameHud.CreateEmbeddedRollDialog()
     }
 
     local rollInputContainer = gui.Panel {
-        width = "auto",
+        width = "100%",
         flow = "horizontal",
         halign = 'center',
         height = "auto",
@@ -1696,6 +1698,48 @@ function GameHud.CreateEmbeddedRollDialog()
         height = "auto",
     }
 
+    m_rollTotalLabel = gui.Label{
+        classes = {"shownWhenRollingOrFinished"},
+        halign = "center",
+        textAlignment = "center",
+        width = 60,
+        height = "auto",
+        fontSize = 28,
+        bold = true,
+        color = "white",
+        vmargin = 4,
+        text = "",
+
+        data = {
+            diceFaces = {},
+            mod = 0,
+        },
+
+        beginRoll = function(element, rollInfo, rollid)
+            element.data.diceFaces = {}
+            element.data.mod = rollInfo.total
+            for _, roll in ipairs(rollInfo.rolls) do
+                element.data.mod = element.data.mod - roll.result
+                local events = chat.DiceEvents(roll.guid)
+                if events ~= nil then
+                    events:Listen(element)
+                end
+            end
+            if #rollInfo.rolls == 0 then
+                element.text = tostring(rollInfo.total)
+            end
+        end,
+
+        diceface = function(element, diceguid, num, timeRemaining)
+            element.data.diceFaces[diceguid] = num
+            local total = element.data.mod
+            for _, value in pairs(element.data.diceFaces) do
+                total = total + value
+            end
+            element.text = tostring(total)
+        end,
+    }
+
     m_rollResults = gui.Panel{
         classes = { "hideWhenMinimized" },
         width = "100%",
@@ -1996,14 +2040,15 @@ function GameHud.CreateEmbeddedRollDialog()
             local iconPanel = nil
             if i ~= 3 then
                 local children = {}
-                for j=1, cond(i==1 or i == 4, 2, 1) do
+                for j=1, cond(i==1 or i == 5, 2, 1) do
                     local y = 0
-                    if i == 1 or i == 4 then
+                    if i == 1 or i == 5 then
                         y = cond(j == 1, 2, -2)
                     end
                     children[#children + 1] = gui.Panel {
                         classes = { "icon", cond(i < 3, "boonIcon", "baneIcon") },
                         y = y,
+                        interactable = false,
                     }
                 end
                 iconPanel = gui.Panel{
@@ -2015,12 +2060,13 @@ function GameHud.CreateEmbeddedRollDialog()
                     children = children,
                 }
             end
+            local label = gui.Label{
+                text = text,
+            }
             boonsBanesLabels[#boonsBanesLabels + 1] = gui.Panel {
                 classes = {"boonBaneEntry", cond(i <= 2, "bane", cond(i >= 4, "boon"))},
-                iconPanel,
-                gui.Label{
-                    text = text,
-                },
+                cond(i < 4, iconPanel, label),
+                cond(i < 4, label, iconPanel),
                 press = function(element)
                     local delta = (i - 3) - m_currentBoons
                     m_boons = m_boons + delta
@@ -2775,6 +2821,7 @@ function GameHud.CreateEmbeddedRollDialog()
             surgesBar,
             m_tableContainer,
             rollInputContainer,
+            m_rollTotalLabel,
             m_rollResults,
             triggersWithTabContainer,
             rollDisabledLabel,
@@ -3139,6 +3186,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 --ensure these buttons are shown when showing the dialog.
                 resultPanel:SetClassTree("rolling", false)
                 resultPanel:SetClassTree("finishedRolling", false)
+                resultPanel:SetClassTree("rollPending", false)
 
                 if options.PopulateTable ~= nil then
                     m_tableContainer:SetClass("collapsed", false)
@@ -3635,7 +3683,11 @@ function GameHud.CreateEmbeddedRollDialog()
                     end,
                     pending = function(rollInfo)
                         m_rollInfo = rollInfo
+                        m_rollTotalLabel.text = tostring(rollInfo.total or 0)
                         if showingDialog then
+                            resultPanel:SetClassTree("rolling", false)
+                            resultPanel:SetClassTree("finishedRolling", true)
+                            BroadcastDialogState()
                             resultPanel:SetClassTree("rollPending", true)
                             m_triggerProgressDice:FireEvent("pending")
                         end
@@ -3643,14 +3695,15 @@ function GameHud.CreateEmbeddedRollDialog()
                     complete = function(rollInfo)
                         print("ROLL:: COMPLETE")
                         m_rollInfo = rollInfo
+                        m_rollTotalLabel.text = tostring(rollInfo.total or 0)
+
+                        resultPanel:SetClassTree("rolling", false)
+                        resultPanel:SetClassTree("rollPending", false)
+                        resultPanel:SetClassTree("finishedRolling", true)
+                        BroadcastDialogState()
 
                             print("AI:: IS COMPLETE, SHOWING DIALOG:", showingDialog)
                         if showingDialog then
-                            resultPanel:SetClassTree("rolling", false)
-                            resultPanel:SetClassTree("rollPending", false)
-                            resultPanel:SetClassTree("finishedRolling", true)
-                            BroadcastDialogState()
-
                             proceedAfterRollButton.events.press = function()
                                 print("AI:: PRESSED PROCEED AFTER ROLL")
                                 resultPanel:SetClass('hidden', true)
