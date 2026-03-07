@@ -3608,16 +3608,31 @@ function creature:DispatchEventAndWait(eventName, info)
     --wait for event to complete or trigger to be dismissed
     local triggerStillExists = true
     while not eventComplete and triggerStillExists do
-        -- Check if trigger still exists in available triggers
-        triggerStillExists = false
+        
         if triggerId then
+            -- We have a trigger ID, check if it still exists
+            triggerStillExists = false
             for _, triggerInfo in pairs(self:GetAvailableTriggers() or {}) do
                 if triggerInfo.id == triggerId then
                     triggerStillExists = true
                     break
                 end
             end
+        else
+            -- We don't have a trigger ID yet, try to find it
+            for _, triggerInfo in pairs(self:GetAvailableTriggers() or {}) do
+                if triggerInfo.text == modName then
+                    triggerId = triggerInfo.id
+                    triggerStillExists = true
+                    break
+                end
+            end
+            -- If we still haven't found it, keep waiting
+            if not triggerId then
+                triggerStillExists = true
+            end
         end
+        
         coroutine.yield(0.1)
     end
 end
