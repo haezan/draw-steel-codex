@@ -11,6 +11,11 @@ setting{
 
 local PLACEHOLDER_TOKEN = "game-icons/griffin-symbol.png"
 
+local g_refreshChecklistName = {
+    encounter = "encounter",
+    round = "round",
+}
+
 -- Commonly used colors
 local GRAY02 = "#666663"
 local RICH_BLACK = "#040807"
@@ -72,6 +77,13 @@ TacPanelSizes.Fonts = {
 
     charTitle = 12,
     charValue = 30,
+
+    hrChipValue = 14,
+    hrChipEvent = 12,
+    hrChipFreq = 12,
+    growHRTitle = 14,
+    grValue = 16,
+    grText = 14,
 }
 TacPanelSizes.VisionBtn = {
     size = 24,
@@ -416,6 +428,7 @@ TacPanelStyles.Stamina = {
     },
     {
         selectors = {"label", "stambox-title", "temp"},
+        fontSize = TacPanelSizes.Fonts.stamBoxTitle - 1,
         color = TEMP_STAM,
     },
     {
@@ -860,6 +873,185 @@ TacPanelStyles.MovementPanel = {
         brightness = 0.5,
     },
 }
+TacPanelStyles.HeroicResources = {
+    {
+        selectors = {"panel", "hr-gains"},
+        width = "100%-8",
+        height = "auto",
+        lmargin = 6,
+        flow = "vertical",
+    },
+    {
+        selectors = {"panel", "hr-row"},
+        width = "100%",
+        height = "auto",
+        bmargin = 4,
+        flow = "horizontal",
+    },
+    {
+        selectors = {"panel", "hr-chip"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        vpad = 3,
+        hpad = 6,
+        flow = "horizontal",
+        bgimage = true,
+        border = 1,
+        borderColor = GOLD,
+        cornerRadius = 4,
+        bgcolor = GOLD .. "0F",
+    },
+    {
+        selectors = {"panel", "hr-chip", "completed"},
+        bgcolor = DIMMER .. "0F",
+        borderColor = DIM,
+    },
+    {
+        selectors = {"label", "hr-chip-value"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        fontFace = "Newzald",
+        fontSize = TacPanelSizes.Fonts.hrChipValue,
+        color = GOLD,
+    },
+    {
+        selectors = {"label", "hr-chip-value", "parent:completed"},
+        strikethrough = true,
+        color = DIM,
+    },
+    {
+        selectors = {"label", "hr-chip-event"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        hmargin = 4,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.hrChipEvent,
+        color = GOLD_LIGHT,
+    },
+    {
+        selectors = {"label", "hr-chip-event", "parent:completed"},
+        strikethrough = true,
+        color = DIM,
+    },
+    {
+        selectors = {"label", "hr-chip-freq"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        hmargin = 4,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.hrChipFreq,
+        color = DIMMER,
+    },
+    {
+        selectors = {"panel", "growing-resources"},
+        width = "100%-8",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        border = 1,
+        borderColor = DIMMER,
+        cornerRadius = 2,
+    },
+    {
+        selectors = {"panel", "gr-title"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        vpad = 4,
+        flow = "horizontal",
+        bgimage = true,
+        bgcolor = GOLD .. "0F",
+        borderColor = GOLD,
+        border = {x1 = 0, y1 = 1, x2 = 0, y2 = 0},
+    },
+    {
+        selectors = {"label", "gr-title"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        lmargin = 8,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.growHRTitle,
+        color = GOLD,
+        bold = true,
+    },
+    {
+        selectors = {"gr-expando"},
+        hmargin = 8,
+        halign = "right",
+        valign = "center",
+        bgcolor = DIM,
+    },
+    {
+        selectors = {"panel", "gr-row"},
+        height = "auto",
+        width = "100%",
+        valign = "top",
+        halign = "left",
+        vpad = 4,
+        flow = "horizontal",
+        bgimage = true,
+        borderColor = DIMMER,
+        border = {x1 = 0, x2 = 0, y1 = 0, y2 = 1},
+    },
+    {
+        selectors = {"panel", "gr-row", "available"},
+        bgcolor = GOLD_LIGHT .. "0F"
+    },
+    {
+        selectors = {"label", "gr-value"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        tmargin = 4,
+        lmargin = 8,
+        hpad = 8,
+        vpad = 4,
+        textAlignment = "center",
+        fontFace = "Newzald",
+        fontSize = TacPanelSizes.Fonts.grValue,
+        bold = true,
+        color = DIM,
+        bgimage = true,
+        border = 1,
+        borderColor = DIMMER,
+        bgcolor = DIMMER .. "0F",
+        cornerRadius = {x1 = 0, x2 = 0, y1 = 4, y2 = 4},
+    },
+    {
+        selectors = {"label", "gr-value", "parent:available"},
+        color = GOLD,
+        borderColor = GOLD,
+        bgcolor = GOLD .. "0F",
+    },
+    {
+        selectors = {"label", "gr-text"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.grText,
+        color = DIM,
+    },
+    {
+        selectors = {"label", "gr-text", "parent:available"},
+        color = GOLD_LIGHT,
+    }
+}
 
 -- Big text
 local HERO_TOKEN_TOOLTIP = [[**Hero Tokens**
@@ -1250,6 +1442,10 @@ function TacPanel.HeroicResourcesBox()
 
         refreshCharacter = function(element, token)
             element.data.token = token
+        end,
+
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
         end,
 
         linger = function(element)
@@ -2644,6 +2840,191 @@ function TacPanel.Statistics()
     }
 end
 
+--- Display a heroic resource gain row
+--- @param entry table from GetHeroicResourceChecklist()
+--- @param token table the creature token
+--- @return Panel
+function TacPanel.HRGainRow(entry, token)
+    return gui.Panel{
+        classes = {"hr-row"},
+        linger = gui.Tooltip(entry.details),
+        gui.Panel{
+            classes = {"hr-chip"},
+            press = function(element)
+                local q = dmhub.initiativeQueue
+                if q == nil or q.hidden then
+                    return
+                end
+                if element:HasClass("completed") then
+                    return
+                end
+                if token == nil or not token.valid then
+                    return
+                end
+                token:ModifyProperties{
+                    description = tr("Trigger resource gain"),
+                    execute = function()
+                        local updateid = token.properties:GetHeroicResourceChecklistRefreshId(entry.guid)
+                        if updateid == nil then
+                            return
+                        end
+                        local record = token.properties:get_or_add("heroicResourceRecord", {})
+                        local checklistBefore = {}
+                        checklistBefore[entry.guid] = {record[entry.guid], updateid}
+                        record[entry.guid] = updateid
+
+                        local quantity = ExecuteGoblinScript(entry.quantity, GenerateSymbols(token.properties), 0, "Heroic Resource Amount")
+                        local amount = token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", quantity, entry.name)
+                        if amount > 0 then
+                            chat.SendCustom(
+                                ResourceChatMessage.new{
+                                    tokenid = token.charid,
+                                    resourceid = CharacterResource.heroicResourceId,
+                                    quantity = amount,
+                                    mode = "replenish",
+                                    checklistBefore = checklistBefore,
+                                    reason = entry.name,
+                                }
+                            )
+                        end
+                    end,
+                }
+            end,
+            gui.Label{
+                classes = {"label", "hr-chip-value"},
+                text = string.format("+%d", tonumber(entry.quantity) or 1),
+                refreshToken = not safe_toint(entry.quantity) and function(element)
+                    local text = dmhub.EvalGoblinScript(entry.quantity, token.properties:LookupSymbol())
+                    element.text = string.format("+%s", text)
+                end or nil,
+            },
+            gui.Label{ classes = {"label", "hr-chip-event"}, text = entry.name },
+        },
+        gui.Label{
+            classes = {"label", "hr-chip-freq"},
+            text = string.format("1 / %s", g_refreshChecklistName[entry.mode or "encounter"] or "always"),
+        },
+    }
+end
+
+--- Display a single growing HR table row
+--- @param entry table from growingResources.progression
+--- @param creature table the creature properties
+--- @return Panel
+function TacPanel.GrowingHRRow(entry, creature)
+    return gui.Panel{
+        classes = {"gr-row"},
+        data = { entry = entry },
+        setCollapse = function(element, collapsed)
+            element:SetClass("collapsed", collapsed)
+        end,
+        update = function(element, newEntry)
+            element.data.entry = newEntry
+            element.children[1].text = tostring(newEntry.resources)
+            local text = StringInterpolateGoblinScript(newEntry.description, creature)
+            element.children[2].text = text
+            element.children[2].selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.grText, 50, #text)
+        end,
+        linger = function(element)
+            if element.data.entry.tooltip ~= nil then
+                gui.Tooltip(element.data.entry.tooltip)(element)
+            end
+        end,
+        gui.Label{
+            classes = {"label", "gr-value"},
+            text = tostring(entry.resources),
+        },
+        gui.Label{
+            classes = {"label", "gr-text"},
+            text = StringInterpolateGoblinScript(entry.description, creature),
+        },
+    }
+end
+
+--- Display the growing heroic resource table
+--- @return Panel
+function TacPanel.GrowingHRTable()
+    return gui.Panel{
+        styles = TacPanelStyles.HeroicResources,
+        classes = {"growing-resources", "collapsed"},
+        data = { token = nil, rows = {}, collapsed = false },
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            local creature = token.properties
+            if (not creature:IsHero()) and (not creature:IsCompanion()) then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local growingResources = creature:GetGrowingResourcesTable()
+            if growingResources == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            element:FireEventTree("setTitle", growingResources.name:upper())
+
+            local characterLevel = creature:CharacterLevel()
+            local characterResources = creature:GetProgressionResource()
+
+            local rows = element.data.rows
+            local children = { element.children[1] }
+            local index = 1
+
+            for _, entry in ipairs(growingResources.progression) do
+                if (tonumber(entry.level) or 0) <= characterLevel then
+                    local row = rows[index] or TacPanel.GrowingHRRow(entry, creature)
+                    rows[index] = row
+                    index = index + 1
+
+                    row:FireEventTree("update", entry)
+                    row:SetClass("available", entry.resources <= characterResources)
+                    row:SetClass("collapsed", element.data.collapsed)
+
+                    children[#children + 1] = row
+                end
+            end
+
+            for i = index, #rows do
+                rows[i]:SetClass("collapsed", true)
+            end
+
+            element.data.rows = rows
+            element.children = children
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Panel{
+            classes = {"panel", "gr-title"},
+            press = function(element)
+                local outer = element.parent
+                outer.data.collapsed = not outer.data.collapsed
+                outer:FireEventTree("setCollapse", outer.data.collapsed)
+            end,
+            gui.Label{
+                classes = {"label", "gr-title"},
+                text = "",
+                setTitle = function(element, text)
+                    element.text = text
+                end,
+            },
+            gui.CollapseArrow{
+                classes = {"gr-expando"},
+                width = 10,
+                height = 10,
+                setCollapse = function(element, collapsed)
+                    element:SetClass("collapseSet", collapsed)
+                end,
+            },
+        },
+    }
+end
+
 --- Display the heroic resources info
 --- @return Panel
 function TacPanel.HeroicResources()
@@ -2683,19 +3064,54 @@ function TacPanel.HeroicResources()
                 TacPanel.VictoriesBox(),
                 TacPanel.HeroicResourcesBox(),
             },
-            -- TODO: HR Gains
-            gui.Label{
-                width = "auto",
-                height = "auto",
-                halign = "center",
-                valign = "center",
-                color = RED,
-                fontSize = 24,
-                textAlignment = "center",
-                text = "working on\nHR gain UI",
+            gui.Panel{
+                styles = TacPanelStyles.HeroicResources,
+                classes = {"hr-gains"},
+                data = { token = nil, panels = {} },
+                refreshCharacter = function(element, token)
+                    element.data.token = token
+                    local creature = token.properties
+                    local checklist = creature:GetHeroicResourceChecklist()
+                    if checklist == nil or #checklist == 0 then
+                        element.children = {}
+                        element.data.panels = {}
+                        return
+                    end
+
+                    local panels = element.data.panels
+                    local newPanels = {}
+                    local children = {}
+
+                    for _, entry in ipairs(checklist) do
+                        local consumed
+                        local q = dmhub.initiativeQueue
+                        local record = creature:try_get("heroicResourceRecord")
+                        if q == nil or q.hidden or entry.mode == "recurring" or record == nil or record[entry.guid] == nil or record[entry.guid] ~= creature:GetResourceRefreshId(entry.mode or "encounter") then
+                            consumed = false
+                        else
+                            consumed = true
+                        end
+
+                        local panel = panels[entry.guid] or TacPanel.HRGainRow(entry, token)
+
+                        panel.children[1]:SetClassImmediate("completed", consumed)
+
+                        newPanels[entry.guid] = panel
+                        children[#children + 1] = panel
+                    end
+
+                    element.data.panels = newPanels
+                    element.children = children
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
             },
         },
-        -- TODO: Epic Resources?
+        TacPanel.GrowingHRTable(),
     }
 end
 
@@ -4325,11 +4741,6 @@ local function InflictedConditionsPanel(m_token)
     return resultPanel
 end
 
-local g_refreshChecklistName = {
-    encounter = "encounter",
-    round = "round",
-}
-
 CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 
     local newTacPanel = dmhub.GetSettingValue("newTacPanel") == true
@@ -4408,7 +4819,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
         newTacPanel and TacPanel.HeroicResources() or nil,
 
         --heroic resource panel.
-        gui.Panel{
+        oldTacPanel and gui.Panel{
             width = "100%",
             height = "auto",
             flow = "vertical",
@@ -4682,10 +5093,10 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 
                 }
             },
-        },
+        } or nil,
 
         --growing resource table, only relevant for characters that have growing resources.
-        gui.Panel{
+        oldTacPanel and gui.Panel{
             width = "100%",
             height = "auto",
             flow = "vertical",
@@ -4833,13 +5244,10 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
                     element.children = newChildren
                 end
             end,
-        },
-
-
+        } or nil,
 
         RoutinesPanel(m_token),
         PersistencePanel(m_token),
-
 
         --custom effects.
         gui.Panel{
