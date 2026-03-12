@@ -1698,7 +1698,7 @@ local ShowResourcesPanel = function(parentPanel)
 
 
 		--the resource's dice type.
-		children[#children+1] = gui.Panel{
+		--[[ children[#children+1] = gui.Panel{
 			classes = {'formPanel'},
 			gui.Label{
 				text = 'Die Type:',
@@ -1718,10 +1718,10 @@ local ShowResourcesPanel = function(parentPanel)
 					UploadResource()
 				end,
 			}
-		}
+		} ]]
 
 		--if the resource can be used to cast spells
-		children[#children+1] = gui.Panel{
+		--[[ children[#children+1] = gui.Panel{
 			classes = {'formPanel'},
 			gui.Label{
 				text = 'Spell Level:',
@@ -1741,7 +1741,7 @@ local ShowResourcesPanel = function(parentPanel)
 					UploadResource()
 				end,
 			}
-		}
+		} ]]
 
 		--if the resource is a level up from another resource.
 		local resourceChoices = {}
