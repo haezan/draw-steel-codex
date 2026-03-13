@@ -3193,6 +3193,10 @@ function CharacterModifier:ConsumeResourceInternal(creature, modContext)
             note = modContext.modifier.name
         end
         creature:ConsumeSurges(cost, note)
+    elseif costType == "epicresource" and not self:try_get("overrideCost", false) then
+        local charges = self:try_get("_tmp_symbols", {}).charges or 1
+        local cost = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0)*charges
+        creature:ConsumeResource(CharacterResource.epicResourceId, "unbounded", cost, string.format("%s", self.name))
     elseif costType ~= "none" and not self:try_get("overrideCost", false) then
         local charges = self:try_get("_tmp_symbols", {}).charges or 1
         local cost = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0)*charges
@@ -3233,6 +3237,10 @@ function CharacterModifier:HasResourcesAvailable(creature)
     local costType = self:try_get("resourceCostType", "none")
     if costType == "surges" then
         local resourcesAvailable = creature:GetAvailableSurges()
+        local cost = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0)
+        return cost <= resourcesAvailable
+    elseif costType == "epicresource" then
+        local resourcesAvailable = creature:GetEpicResources()
         local cost = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0)
         return cost <= resourcesAvailable
     elseif costType ~= "none" then
@@ -3276,6 +3284,9 @@ function CharacterModifier:DescribeResourceAvailability(creature, charges, expec
         if costType == "surges" then
             resourcesAvailable = creature:GetAvailableSurges()
             resourceName = tr("Surges")
+        elseif costType == "epicresource" then
+            resourcesAvailable = creature:GetEpicResources()
+            resourceName = creature:GetEpicResourceName()
         else
             resourcesAvailable = creature:GetHeroicOrMaliceResources()
             resourceName = creature:GetHeroicResourceName()
