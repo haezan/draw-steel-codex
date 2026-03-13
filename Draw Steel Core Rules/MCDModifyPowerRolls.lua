@@ -1001,6 +1001,10 @@ CharacterModifier.TypeInfo.power = {
                             id = "surges",
                             text = "Surges",
                         },
+                        {
+                            id = "epicresource",
+                            text = "Epic Resource",
+                        },
 					},
 					change = function(element)
                         modifier.resourceCostType = element.idChosen

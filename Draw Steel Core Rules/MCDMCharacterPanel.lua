@@ -5553,8 +5553,8 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
                                     halign = "left",
 
                                     refreshStatus = function(element, info, entry)
-                                        element:FireEvent("icon", info.iconid)
-                                        element:FireEvent("display", info.display)
+                                        element:FireEvent("icon", info:GetDisplayIcon())
+                                        element:FireEvent("display", info:GetDisplayDisplay())
                                     end,
 
                                 },
