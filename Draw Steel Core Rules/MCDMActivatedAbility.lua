@@ -2733,6 +2733,10 @@ function ActivatedAbility:GetRange(casterCreature, castingSymbols, selfRange)
         result = result + self.rangeBonusFromReach
     end
 
+    if castingSymbols ~= nil and castingSymbols.abilityRangeBonus ~= nil then
+        result = result + castingSymbols.abilityRangeBonus
+    end
+
     return result
 end
 
@@ -2759,6 +2763,15 @@ function ActivatedAbility:GetLineDistance(castingCreature, castingSymbols)
         end
     end
 
+    return result
+end
+
+local g_baseGetRadius = ActivatedAbility.GetRadius
+function ActivatedAbility:GetRadius(casterCreature, castingSymbols)
+    local result = g_baseGetRadius(self, casterCreature, castingSymbols)
+    if castingSymbols ~= nil and castingSymbols.abilityRadiusBonus ~= nil then
+        result = result + castingSymbols.abilityRadiusBonus
+    end
     return result
 end
 

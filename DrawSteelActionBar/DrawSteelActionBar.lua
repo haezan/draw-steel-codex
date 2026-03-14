@@ -2063,23 +2063,23 @@ local ApplyImprovements = function()
     if g_token == nil or g_currentAbility == nil then return end
 
     -- Rebuild the base cost proposal, then append costs for each checked improvement.
-    -- This ensures the cast mechanism sees and pays the improvement costs normally.
     g_currentCostProposal = g_currentAbility:GetCost(g_token, g_currentSymbols)
 
-    local restores = {}
+    -- Reset all improvement bonus fields so each call starts fresh.
+    g_currentSymbols.abilityRangeBonus = nil
+    g_currentSymbols.abilityRadiusBonus = nil
+    g_currentSymbols.numtargetsoverride = nil
+    g_currentSymbols._abilityTargetCountBonus = nil
+
     for _, entry in ipairs(m_activeImprovements) do
         if entry.checked then
-            -- Apply targeting param patches.
             local looksym = g_token.properties:LookupSymbol{ability = g_currentAbility}
             for _, param in ipairs(entry.mod:try_get("params", {})) do
                 local info = CharacterModifier.ImprovementParamsById[param.id]
-                if info ~= nil and info.apply ~= nil and param.value ~= nil and param.value ~= "" then
+                if info ~= nil and info.accumulate ~= nil and param.value ~= nil and param.value ~= "" then
                     local value = ExecuteGoblinScript(param.value, looksym, 0)
                     if value ~= 0 then
-                        local restore = info.apply(g_currentAbility, value, g_token.properties, g_currentSymbols)
-                        if restore ~= nil then
-                            restores[#restores+1] = restore
-                        end
+                        info.accumulate(g_currentAbility, value, g_token.properties, g_currentSymbols)
                     end
                 end
             end
@@ -2088,8 +2088,13 @@ local ApplyImprovements = function()
 
     CalculateSpellTargeting()
 
-    for _, restore in ipairs(restores) do
-        restore()
+    -- Re-fire maphover so point-placed AoE shapes (cube, cone, line, etc.) are
+    -- redrawn immediately using the bonus values now in g_currentSymbols.
+    if g_abilityController ~= nil then
+        local data = g_abilityController.data
+        if data.lastHoverLoc ~= nil then
+            g_abilityController:FireEvent("maphover", data.lastHoverLoc, data.lastHoverPoint)
+        end
     end
 end
 
