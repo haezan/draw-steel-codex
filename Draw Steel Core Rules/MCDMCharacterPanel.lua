@@ -1935,6 +1935,14 @@ function TacPanel.HeroicResourcesBox()
             flow = "horizontal",
             gui.Panel{
                 classes = {"icon", "heroic-resources"},
+                refreshCharacter = function(element, token)
+                    local classInfo = token.properties:GetClass()
+                    local icon = classInfo ~= nil and classInfo:try_get("heroicResourceIcon", PLACEHOLDER_TOKEN)
+                    element.bgimage = icon
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
             },
             gui.Label{
                 classes = {"tokenbox", "value", "heroic-resources"},
