@@ -1546,6 +1546,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 									canTarget = false
 								end
 
+								if currentSymbols ~= nil and currentSymbols.allowedtargets ~= nil and not currentSymbols.allowedtargets[targetToken.charid] then
+									canTarget = false
+								end
+
 								if canTarget and not spell:TargetPassesFilter(token, targetToken, currentSymbols) then
 									canTarget = false
 								end

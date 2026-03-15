@@ -396,15 +396,27 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         }
 
         print("AI:: PUSH:: IN INVOKE token", creature.GetTokenDescription(invokerToken), "targeting =", targeting, "ai", invokerToken.properties._tmp_aicontrol, "promptCallback =", invokerToken.properties._tmp_aipromptCallback, "for", abilityClone.name, coroutine.running())
-        if targeting == "prompt" and invokerToken.properties._tmp_aicontrol > 0 and invokerToken.properties._tmp_aipromptCallback then
+        if (targeting == "prompt" or targeting == "prompt_inherit") and invokerToken.properties._tmp_aicontrol > 0 and invokerToken.properties._tmp_aipromptCallback then
             print("PUSH:: INVOKING!!!!!")
             targeting = invokerToken.properties._tmp_aipromptCallback(invokerToken, casterToken, abilityClone, symbols, options)
         end
 
-        if targeting == "prompt" then
+        if targeting == "prompt" or targeting == "prompt_inherit" then
             print("INVOKE:: PROMPT CAST FOR", abilityClone.name, coroutine.running())
             abilityClone.countsAsCast = true
             abilityClone.skippable = true
+
+            if targeting == "prompt_inherit" then
+                local allowedtargets = {}
+                local inheritedTargets = options.targets or {}
+                for _, target in ipairs(inheritedTargets) do
+                    if target.token ~= nil then
+                        allowedtargets[target.token.charid] = true
+                    end
+                end
+                symbols.allowedtargets = allowedtargets
+            end
+
             gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, abilityClone, symbols, invokerCallback)
         else
             abilityClone.countsAsCast = options.countsAsCast or false
@@ -715,6 +727,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
             classes = {"formDropdown"},
 			options = {
 				{ text = "Prompt Player", id = "prompt" },
+				{ text = "Prompt Player (Inherit)", id = "prompt_inherit" },
 				{ text = "Self", id = "self" },
                 { text = "Inherit From This Ability", id = "inherit"},
                 { text = "Creatures Matching Formula", id = "formula"},

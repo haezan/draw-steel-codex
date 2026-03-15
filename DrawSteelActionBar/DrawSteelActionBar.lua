@@ -4598,6 +4598,10 @@ local function CalculateSpellTargetFocusing(symbols)
                     canTarget = false
                 end
 
+                if symbols ~= nil and symbols.allowedtargets ~= nil and not symbols.allowedtargets[targetToken.charid] then
+                    canTarget = false
+                end
+
                 if locs ~= nil and canTarget then
                     canTarget = false
                     local locsOccupying = targetToken.locsOccupying
