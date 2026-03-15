@@ -3,6 +3,8 @@ local mod = dmhub.GetModLoading()
 CharacterModifier.RegisterType("castingorigin", "Casting Origin")
 
 CharacterModifier.TypeInfo.castingorigin = {
+	filterRequiresRoll = true, -- prevent standard pipeline from checking filterCondition against bearer; we check it ourselves against the caster
+
 	init = function(modifier)
 		modifier.keywordFilter = {}
 	end,
@@ -116,6 +118,22 @@ local function KeywordFilterMatches(ability, keywordFilter)
 	return not hasAnyFilter
 end
 
+local function CasterPassesCondition(casterCreature, modifier, modContext)
+	local condition = modifier:try_get("filterCondition", "")
+	if condition == "" then
+		return false
+	end
+
+	-- Install symbols from context (ongoing effect, etc.) so they are available in the condition
+	if modContext ~= nil then
+		modifier:InstallSymbolsFromContext(modContext)
+	end
+
+	local symbols = modifier:try_get("_tmp_symbols", {})
+	local result = ExecuteGoblinScript(condition, casterCreature:LookupSymbol(symbols), 0, "Casting Origin: caster condition")
+	return result ~= 0
+end
+
 function ActivatedAbility:GetCastingOriginTokens(casterToken)
 	if mod.unloaded then
 		return {}
@@ -124,10 +142,12 @@ function ActivatedAbility:GetCastingOriginTokens(casterToken)
 	local result = {}
 	local allTokens = dmhub.GetTokens{haveProperties = true}
 	for _, tok in ipairs(allTokens) do
-		if tok.valid and tok.charid ~= casterToken.charid and casterToken:IsFriend(tok) then
+		if tok.valid and tok.charid ~= casterToken.charid then
 			local modifiers = tok.properties:GetActiveModifiers()
 			for _, modEntry in ipairs(modifiers) do
-				if modEntry.mod.behavior == "castingorigin" and KeywordFilterMatches(self, modEntry.mod.keywordFilter) then
+				if modEntry.mod.behavior == "castingorigin"
+					and KeywordFilterMatches(self, modEntry.mod.keywordFilter)
+					and CasterPassesCondition(casterToken.properties, modEntry.mod, modEntry) then
 					result[#result+1] = tok
 					break
 				end
