@@ -95,7 +95,8 @@ CharacterModifier.RegisterTriggerModifier{
 
 
 local g_modeVariations = {}
-
+local g_modeCostDeltas = {}
+local g_modeActionOverrides = {}
 local g_injectedTriggerIds = {}
 
 
@@ -240,6 +241,263 @@ CharacterModifier.RegisterTriggerModifier{
             local modeIndex = #modes
             g_modeVariations[triggerInfo.id .. "_" .. modeIndex] = entry.variation
         end
+    end,
+}
+
+CharacterModifier.RegisterTriggerModifier{
+    id = "modifycost",
+    text = "Modify Cost",
+
+    init = function(entry)
+        entry.text = "Reduced Cost"
+        entry.rules = ""
+        entry.condition = ""
+        entry.costDelta = 0
+    end,
+
+    createEditor = function(modifier, entry, index, Refresh)
+        local children = {}
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Text:",
+            },
+            gui.Input{
+                classes = {"formInput"},
+                characterLimit = 60,
+                text = entry.text or "",
+                change = function(element)
+                    entry.text = element.text
+                    Refresh()
+                end,
+            },
+        }
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Rules:",
+            },
+            gui.Input{
+                classes = {"formInput"},
+                multiline = true,
+                fontSize = 14,
+                textAlignment = "topleft",
+                width = 300,
+                height = "auto",
+                minHeight = 28,
+                characterLimit = 300,
+                text = entry.rules or "",
+                change = function(element)
+                    entry.rules = element.text
+                    Refresh()
+                end,
+            },
+        }
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Mode Condition:",
+            },
+            gui.GoblinScriptInput{
+                value = entry.condition or "",
+                change = function(element)
+                    entry.condition = element.value
+                    Refresh()
+                end,
+                documentation = {
+                    domains = modifier:Domains(),
+                    help = "This GoblinScript determines whether this cost modification is available. Leave blank for always available.",
+                    output = "boolean",
+                    subject = creature.helpSymbols,
+                    subjectDescription = "The creature who owns this trigger.",
+                },
+            },
+        }
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Cost Change:",
+            },
+            gui.Input{
+                classes = {"formInput"},
+                width = 80,
+                text = tostring(entry.costDelta or 0),
+                change = function(element)
+                    entry.costDelta = tonumber(element.text) or 0
+                    Refresh()
+                end,
+            },
+        }
+
+        return children
+    end,
+
+    fillTriggerModes = function(modifier, entry, triggerInfo, creature, casterSymbols)
+        local formula = entry.condition or ""
+        if formula ~= "" then
+            local result = ExecuteGoblinScript(formula, casterSymbols, 0, "Modify Trigger cost condition")
+            if not GoblinScriptTrue(result) then
+                return
+            end
+        end
+
+        -- Copy existing modes into a new table so we never mutate the
+        -- class-level default ActiveTrigger.modes shared by all triggers.
+        local existingModes = triggerInfo.modes or {}
+        local modes = {}
+        for i, m in ipairs(existingModes) do
+            modes[i] = m
+        end
+
+        local costDelta = entry.costDelta or 0
+        local costText = ""
+        if costDelta ~= 0 then
+            local sign = costDelta > 0 and "+" or ""
+            costText = string.format(" (%s%d)", sign, costDelta)
+        end
+
+        modes[#modes+1] = {
+            text = (entry.text or "") .. costText,
+            rules = StringInterpolateGoblinScript(entry.rules or "", casterSymbols),
+            cost = costDelta,
+        }
+        triggerInfo.modes = modes
+
+        -- Track cost delta by mode index so the hook can apply it.
+        local modeIndex = #modes
+        g_modeCostDeltas[triggerInfo.id .. "_" .. modeIndex] = costDelta
+    end,
+}
+
+
+CharacterModifier.RegisterTriggerModifier{
+    id = "modifyaction",
+    text = "Modify Action",
+
+    init = function(entry)
+        entry.text = "Free Triggered Action"
+        entry.rules = ""
+        entry.condition = ""
+        entry.actionResourceId = "none"
+    end,
+
+    createEditor = function(modifier, entry, index, Refresh)
+        local children = {}
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Text:",
+            },
+            gui.Input{
+                classes = {"formInput"},
+                characterLimit = 60,
+                text = entry.text or "",
+                change = function(element)
+                    entry.text = element.text
+                    Refresh()
+                end,
+            },
+        }
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Rules:",
+            },
+            gui.Input{
+                classes = {"formInput"},
+                multiline = true,
+                fontSize = 14,
+                textAlignment = "topleft",
+                width = 300,
+                height = "auto",
+                minHeight = 28,
+                characterLimit = 300,
+                text = entry.rules or "",
+                change = function(element)
+                    entry.rules = element.text
+                    Refresh()
+                end,
+            },
+        }
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Mode Condition:",
+            },
+            gui.GoblinScriptInput{
+                value = entry.condition or "",
+                change = function(element)
+                    entry.condition = element.value
+                    Refresh()
+                end,
+                documentation = {
+                    domains = modifier:Domains(),
+                    help = "This GoblinScript determines whether this action modification is available. Leave blank for always available.",
+                    output = "boolean",
+                    subject = creature.helpSymbols,
+                    subjectDescription = "The creature who owns this trigger.",
+                },
+            },
+        }
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Action:",
+            },
+            gui.Dropdown{
+                classes = "formDropdown",
+                idChosen = entry.actionResourceId or "none",
+                options = CharacterResource.GetActionOptions(),
+                change = function(element)
+                    entry.actionResourceId = element.idChosen
+                    Refresh()
+                end,
+            },
+        }
+
+        return children
+    end,
+
+    fillTriggerModes = function(modifier, entry, triggerInfo, creature, casterSymbols)
+        local formula = entry.condition or ""
+        if formula ~= "" then
+            local result = ExecuteGoblinScript(formula, casterSymbols, 0, "Modify Trigger action condition")
+            if not GoblinScriptTrue(result) then
+                return
+            end
+        end
+
+        -- Copy existing modes.
+        local existingModes = triggerInfo.modes or {}
+        local modes = {}
+        for i, m in ipairs(existingModes) do
+            modes[i] = m
+        end
+        modes[#modes+1] = {
+            text = entry.text or "",
+            rules = StringInterpolateGoblinScript(entry.rules or "", casterSymbols),
+        }
+        triggerInfo.modes = modes
+
+        -- Track action resource override by mode index.
+        local modeIndex = #modes
+        g_modeActionOverrides[triggerInfo.id .. "_" .. modeIndex] = entry.actionResourceId or "none"
     end,
 }
 
@@ -489,12 +747,13 @@ local g_baseDispatchAvailableTrigger = creature.DispatchAvailableTrigger
 function creature:DispatchAvailableTrigger(triggerInfo)
     if triggerInfo ~= nil and triggerInfo.powerRollModifier == false then
 
-        -- Check if this is a re-dispatch with a variation mode activated.
+        -- Check if this is a re-dispatch with a modifier mode activated.
         if type(triggerInfo.triggered) == "number" then
-            local variationKey = triggerInfo.id .. "_" .. triggerInfo.triggered
-            local variation = g_modeVariations[variationKey]
+            local modeKey = triggerInfo.id .. "_" .. triggerInfo.triggered
+
+            -- Variation mode: cast a different ability entirely.
+            local variation = g_modeVariations[modeKey]
             if variation ~= nil then
-                -- Cast the variation ability instead of the original trigger.
                 CastVariationAbility(self, variation, triggerInfo)
 
                 -- Dismiss the original trigger so its coroutine exits
@@ -504,6 +763,29 @@ function creature:DispatchAvailableTrigger(triggerInfo)
 
                 g_baseDispatchAvailableTrigger(self, triggerInfo)
                 return
+            end
+
+            -- Cost modification mode: adjust the heroicResourceCost
+            -- then let the normal trigger flow handle it.
+            local costDelta = g_modeCostDeltas[modeKey]
+            if costDelta ~= nil then
+                triggerInfo.heroicResourceCost = math.max(0, (triggerInfo.heroicResourceCost or 0) + costDelta)
+            end
+
+            -- Action resource override mode: change the trigger's free flag
+            -- based on the chosen action resource.
+            local actionOverride = g_modeActionOverrides[modeKey]
+            if actionOverride ~= nil then
+                if actionOverride == "none" or actionOverride == CharacterResource.freeManeuverResourceId then
+                    -- Free action or no action cost.
+                    triggerInfo.free = true
+                elseif actionOverride == CharacterResource.triggerResourceId then
+                    triggerInfo.free = false
+                else
+                    -- Other action resources (action, maneuver, etc.)
+                    -- still not free -- they consume a different resource.
+                    triggerInfo.free = false
+                end
             end
         end
 
@@ -524,10 +806,20 @@ function creature:DispatchAvailableTrigger(triggerInfo)
         -- Clean up tracking when a trigger is dismissed.
         if triggerInfo.dismissed then
             g_injectedTriggerIds[triggerInfo.id] = nil
-            -- Remove any variation entries for this trigger.
+            local prefix = triggerInfo.id .. "_"
             for key, _ in pairs(g_modeVariations) do
-                if string.sub(key, 1, #triggerInfo.id + 1) == triggerInfo.id .. "_" then
+                if string.sub(key, 1, #prefix) == prefix then
                     g_modeVariations[key] = nil
+                end
+            end
+            for key, _ in pairs(g_modeCostDeltas) do
+                if string.sub(key, 1, #prefix) == prefix then
+                    g_modeCostDeltas[key] = nil
+                end
+            end
+            for key, _ in pairs(g_modeActionOverrides) do
+                if string.sub(key, 1, #prefix) == prefix then
+                    g_modeActionOverrides[key] = nil
                 end
             end
         end
@@ -539,9 +831,20 @@ end
 local g_baseClearAvailableTrigger = creature.ClearAvailableTrigger
 function creature:ClearAvailableTrigger(triggerInfo)
     g_injectedTriggerIds[triggerInfo.id] = nil
+    local prefix = triggerInfo.id .. "_"
     for key, _ in pairs(g_modeVariations) do
-        if string.sub(key, 1, #triggerInfo.id + 1) == triggerInfo.id .. "_" then
+        if string.sub(key, 1, #prefix) == prefix then
             g_modeVariations[key] = nil
+        end
+    end
+    for key, _ in pairs(g_modeCostDeltas) do
+        if string.sub(key, 1, #prefix) == prefix then
+            g_modeCostDeltas[key] = nil
+        end
+    end
+    for key, _ in pairs(g_modeActionOverrides) do
+        if string.sub(key, 1, #prefix) == prefix then
+            g_modeActionOverrides[key] = nil
         end
     end
     g_baseClearAvailableTrigger(self, triggerInfo)
