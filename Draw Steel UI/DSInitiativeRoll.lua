@@ -1401,10 +1401,10 @@ local function ShowCombatSetupDialog(selectedTokens)
                 end
             end
 
-            if selectedTokens == nil and partyid ~= nil then
+            if partyid ~= nil then
                 local partyTable = dmhub.GetTable(Party.tableName)
                 local party = partyTable[partyid]
-                --if we don't have selected tokens and the party is non-combatant then they are non-combatants.
+                --if the party is non-combatant then they are non-combatants.
                 if party ~= nil then
                     selected = not party.noncombatant
                 end

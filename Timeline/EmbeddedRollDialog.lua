@@ -2583,13 +2583,23 @@ function GameHud.CreateEmbeddedRollDialog()
         m_triggerProgressDice = gui.ProgressDice{
             data = {
                 startTime = 0,
+                bonusTime = 0,
+                lastThinkTime = 0,
             },
             classes = {"shownWhenPending", "collapsed"},
             width = 64,
             height = 64,
             halign = "center",
             valign = "center",
-            hover = gui.Tooltip("Allow time for triggers to be used."),
+            brightness = 1,
+            hoverCursor = "pointer",
+            styles = {
+                {
+                    selectors = {"hover"},
+                    brightness = 1.3,
+                },
+            },
+            hover = gui.Tooltip("Allow time for triggers to be used.\nHold to advance faster."),
             pending = function(element)
                 if triggersTab:HasClass("hasTriggers") then
                     element:SetClass("collapsed", false)
@@ -2597,6 +2607,8 @@ function GameHud.CreateEmbeddedRollDialog()
                     proceedAfterRollButton:SetClass("collapsed", true)
                     element.thinkTime = 0.01
                     element.data.startTime = dmhub.Time()
+                    element.data.bonusTime = 0
+                    element.data.lastThinkTime = dmhub.Time()
                 end
             end,
 
@@ -2609,7 +2621,17 @@ function GameHud.CreateEmbeddedRollDialog()
                     return
                 end
 
-                local t = (dmhub.Time() - element.data.startTime)/g_settingTriggerDelay:Get()
+                local now = dmhub.Time()
+                local dt = now - element.data.lastThinkTime
+                element.data.lastThinkTime = now
+
+                -- Advance 8x faster while the user holds the mouse button on the timer
+                if element:HasClass("hover") and element:GetMouseButton(0) then
+                    element.data.bonusTime = element.data.bonusTime + dt * 7
+                end
+
+                local elapsed = (now - element.data.startTime) + element.data.bonusTime
+                local t = elapsed / g_settingTriggerDelay:Get()
                 element:FireEventTree("progress", t)
                 if t >= 1 then
                     rollAgainButton:SetClass("collapsed", false)
@@ -3100,12 +3122,14 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 print("RollDialog:: inCoroutine", dmhub.inCoroutine)
                 if dmhub.inCoroutine then
-                    while not resultPanel:HasClass("hidden") do
-                        coroutine.yield(0.02)
-
+                    while true do
                         if resultPanel == nil or (not resultPanel.valid) then
                             return
                         end
+                        if resultPanel:HasClass("hidden") then
+                            break
+                        end
+                        coroutine.yield(0.02)
                     end
                 elseif not resultPanel:HasClass("hidden") then
                     local rollid = dmhub.GenerateGuid()

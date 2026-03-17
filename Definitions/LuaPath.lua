@@ -16,7 +16,8 @@
 --- @field destinationPosition any 
 --- @field destination any 
 --- @field origin any 
---- @field steps Loc[] 
+--- @field steps Loc[]
+--- @field wallBreaks nil|table[] list of wall break records from forced movement through breakable walls
 LuaPath = {}
 
 --- DeepCopy

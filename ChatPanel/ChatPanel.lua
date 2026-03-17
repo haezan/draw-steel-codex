@@ -404,6 +404,7 @@ CreateChatPanel = function()
 	local historyCursor = nil
 
 	local completionChildren = {}
+	local completionIsArgMode = false
 	local EscapeCompletions = nil
 	local completionsPanel = gui.Panel{
 		floating = true,
@@ -435,7 +436,7 @@ CreateChatPanel = function()
 
 	local maxCompletions = 8
 
-	local function BuildCompletionRow(commandText, macroInfo)
+	local function BuildCompletionRow(commandText, macroInfo, pressOverride)
 		local summary = macroInfo and macroInfo.summary or nil
 		local doc = macroInfo and macroInfo.doc or nil
 
@@ -464,7 +465,7 @@ CreateChatPanel = function()
 				},
 			},
 			hover = doc ~= nil and gui.Tooltip(doc) or nil,
-			press = function(element)
+			press = pressOverride or function(element)
 				inputPanel.text = element.data.commandText .. ' '
 				inputPanel.caretPosition = string.len(inputPanel.text)
 				inputPanel.hasFocus = true
@@ -657,32 +658,127 @@ CreateChatPanel = function()
 	end
 
 	local UpdateCompletions = nil
+
+	-- Build a press handler for argument completion rows that replaces just the current arg
+	local function ArgCompletionPress(element)
+		local macroName, args, partial, argIndex = Commands.GetCurrentArg(inputPanel.text)
+		if macroName == nil then return end
+		local completionValue = element.data.commandText
+		-- Rebuild: /command <previous args> <completionValue>
+		local commandPrefix = string.match(inputPanel.text, "^(/%S+)") or inputPanel.text
+		local parts = {commandPrefix}
+		for i = 1, #args do
+			parts[#parts+1] = args[i]
+		end
+		parts[#parts+1] = completionValue
+		inputPanel.text = table.concat(parts, " ") .. " "
+		inputPanel.caretPosition = string.len(inputPanel.text)
+		inputPanel.hasFocus = true
+		UpdateCompletions()
+	end
+
 	UpdateCompletions = function(txt)
 		local text = txt or inputPanel.text
 		local items = chat.GetCommandCompletions(text) or {}
 
 		if #items == 0 then
-			-- Check if we have a complete command and should show usage hints
+			-- Check if we have a complete command and should show usage hints/arg completions
 			local commandName = string.match(text, "^(/[%w_]+)%s")
 			if commandName ~= nil then
 				local macroName = string.sub(commandName, 2)
 				local macroInfo = Commands.GetMacroInfo(macroName)
-				if macroInfo ~= nil and macroInfo.doc ~= nil then
+				if macroInfo ~= nil then
 					local argIndex = CountTypedArgs(text)
-					local hintPanel = BuildUsageHintPanel(macroName, macroInfo, argIndex)
-					if hintPanel ~= nil then
-						completionChildren = {}
-						completionsPanel.children = {hintPanel}
+					local hintPanel = nil
+					if macroInfo.doc ~= nil then
+						hintPanel = BuildUsageHintPanel(macroName, macroInfo, argIndex)
+					end
+
+					-- Build argument completions if available
+					local argCompletionPanel = nil
+					if macroInfo.completions ~= nil then
+						local _, typedArgs, partial, ai = Commands.GetCurrentArg(text)
+						if typedArgs ~= nil then
+							local ok, suggestions = pcall(macroInfo.completions, typedArgs, ai)
+							if ok and suggestions ~= nil then
+								-- Filter by partial prefix (case-insensitive)
+								local lowerPartial = string.lower(partial)
+								local filtered = {}
+								for _, entry in ipairs(suggestions) do
+									local entryText = type(entry) == "table" and entry.text or entry
+									if lowerPartial == "" or string.starts_with(string.lower(entryText), lowerPartial) then
+										filtered[#filtered+1] = entry
+									end
+								end
+
+								if #filtered > 0 then
+									completionChildren = {}
+									completionIsArgMode = true
+									local allChildren = {}
+									for i = 1, math.min(#filtered, maxCompletions) do
+										local entry = filtered[i]
+										local entryText = type(entry) == "table" and entry.text or entry
+										local entrySummary = type(entry) == "table" and entry.summary or nil
+										local entryInfo = entrySummary and {summary = entrySummary} or nil
+										local row = BuildCompletionRow(entryText, entryInfo, ArgCompletionPress)
+										completionChildren[#completionChildren+1] = row
+										allChildren[#allChildren+1] = row
+									end
+
+									if #filtered > maxCompletions then
+										allChildren[#allChildren+1] = gui.Label{
+											text = string.format("... and %d more", #filtered - maxCompletions),
+											fontSize = 11,
+											width = "100%",
+											height = "auto",
+											color = "#666666",
+											textAlignment = "center",
+											vpad = 4,
+										}
+									end
+
+									argCompletionPanel = gui.Panel{
+										bgimage = "panels/square.png",
+										bgcolor = Styles.backgroundColor,
+										width = 400,
+										height = "auto",
+										maxHeight = 300,
+										border = 2,
+										borderColor = Styles.textColor,
+										flow = "vertical",
+										vscroll = #allChildren > maxCompletions,
+										children = allChildren,
+									}
+								end
+							end
+						end
+					end
+
+					if hintPanel ~= nil or argCompletionPanel ~= nil then
+						if argCompletionPanel == nil then
+							completionChildren = {}
+							completionIsArgMode = false
+						end
+						local children = {}
+						if argCompletionPanel ~= nil then
+							children[#children+1] = argCompletionPanel
+						end
+						if hintPanel ~= nil then
+							children[#children+1] = hintPanel
+						end
+						completionsPanel.children = children
 						return
 					end
 				end
 			end
 			completionChildren = {}
+			completionIsArgMode = false
 			completionsPanel.children = {}
 			return
 		end
 
 		completionChildren = {}
+		completionIsArgMode = false
 		local allChildren = {}
 		for i = 1, math.min(#items, maxCompletions) do
 			local commandName = items[i]
@@ -1025,13 +1121,21 @@ CreateChatPanel = function()
                 print("INPUT:: DESELECT")
 			end,
 			tab = function(element)
-                print("TAB:: DONE")
 				local items = chat.GetCommandCompletions(inputPanel.text)
 				if #items == 1 then
 					inputPanel.text = items[1] .. ' '
 					inputPanel.caretPosition = string.len(inputPanel.text)
 					UpdateCompletions()
 					element.hasFocus = true
+					return
+				end
+
+				-- Try argument completion if exactly one match
+				if #items == 0 and #completionChildren == 1 then
+					local commandText = completionChildren[1].data.commandText
+					if commandText ~= nil then
+						ArgCompletionPress(completionChildren[1])
+					end
 				end
 			end,
 			uparrow = function(element)
@@ -1111,9 +1215,22 @@ CreateChatPanel = function()
 
 				local completionText = GetAndClearCompletionSelected()
 				if completionText ~= nil then
-					element.text = completionText .. ' '
+					if completionIsArgMode then
+						-- Replace just the current arg, preserving previous args
+						local macroName, args, partial, argIndex = Commands.GetCurrentArg(element.text)
+						local commandPrefix = string.match(element.text, "^(/%S+)") or element.text
+						local parts = {commandPrefix}
+						for i = 1, #args do
+							parts[#parts+1] = args[i]
+						end
+						parts[#parts+1] = completionText
+						element.text = table.concat(parts, " ") .. " "
+					else
+						element.text = completionText .. ' '
+					end
 					element.hasFocus = true
 					element.caretPosition = string.len(element.text)
+					UpdateCompletions()
 					return
 				end
 

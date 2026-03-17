@@ -5,7 +5,11 @@ function creature:GetVictories()
 end
 
 function creature:SetVictories(n)
+    local old = self:try_get("victories", 0)
     self.victories = n
+    if n > old then
+        self:DispatchEvent("earnvictory", { quantity = n - old })
+    end
 end
 
 

@@ -35,6 +35,15 @@
 --- @field playerCharactersOnLayer any 
 MapFloorLua = {}
 
+--- BreakWallSegment: Break a wall segment, removing it from the map and optionally spawning a rubble object found by keyword.
+--- @param segLoc Loc the location of the wall segment
+--- @param segDir string the direction of the wall segment (e.g. "North", "East", "NorthWest")
+--- @param rubbleKeyword string|nil keyword to search for rubble objects; one matching object is chosen at random
+--- @return nil
+function MapFloorLua:BreakWallSegment(segLoc, segDir, rubbleKeyword)
+	-- dummy implementation for documentation purposes only
+end
+
 --- AdjustParallaxPositionOnGround
 --- @param x any
 --- @param y any

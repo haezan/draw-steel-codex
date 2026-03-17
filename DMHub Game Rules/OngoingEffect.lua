@@ -22,6 +22,22 @@ CharacterOngoingEffect.effectsByName = {}
 CharacterOngoingEffect.endTrigger = "none"
 CharacterOngoingEffect.countsTowardInstanceLimit = true
 CharacterOngoingEffect.casterTracking = "none"
+CharacterOngoingEffect.buffType = "debuff"
+
+CharacterOngoingEffect.BuffTypeOptions = {
+	{
+		id = 'debuff',
+		text = 'Debuff',
+	},
+	{
+		id = 'buff',
+		text = 'Buff',
+	},
+	{
+		id = 'neutral',
+		text = 'Neutral',
+	},
+}
 
 CharacterOngoingEffect.allowEditingDisplayInfo = true
 

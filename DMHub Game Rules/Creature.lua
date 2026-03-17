@@ -5785,7 +5785,11 @@ function creature:OnMove(path)
         return
     end
 
+    --floorAltitude
+
     local immuneFromOpportunityAttacks = path.shifting or (self:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") > 0)
+
+    local ourTileSize = ourToken.tileSize
 
 
     local allTokens = dmhub.allTokens
@@ -5809,6 +5813,9 @@ function creature:OnMove(path)
     local occupyingLocationMap = {}
     local adjacentLocationMap = {}
     for i,otherToken in ipairs(allTokens) do
+        local otherTokenTileSize = otherToken.tileSize
+        local otherTokenAltitude = otherToken.floorAltitude
+
         local adj = otherToken.properties:AdjacentLocations()
         print("LOCS:: OTHER TOKEN ADJACENT", #adj)
 
@@ -5817,7 +5824,7 @@ function creature:OnMove(path)
         for _,a in ipairs(adj) do
             if a.x >= minx and a.x <= maxx and a.y >= miny and a.y <= maxy then
                 for _,step in ipairs(steps) do
-                    if a.x == step.x and a.y == step.y and a.floor == step.floor then
+                    if a.x == step.x and a.y == step.y and a.floor == step.floor and (step.altitude + ourTileSize) >= otherTokenAltitude and step.altitude <= (otherTokenAltitude + otherTokenTileSize) then
                         moveNextTo = true
                         break
                     end
@@ -8545,7 +8552,7 @@ function creature:DispatchEvent(eventName, info)
 			local triggeredEvents = self:get_or_add("triggeredEvents", {})
 
             --clear out any old or invalid events.
-            while #triggeredEvents > 0 and (triggeredEvents[1].timestamp == nil or TimestampAgeInSeconds(triggeredEvents[1].timestamp) > 30) do
+            while #triggeredEvents > 0 and (triggeredEvents[1] == nil or triggeredEvents[1].timestamp == nil or TimestampAgeInSeconds(triggeredEvents[1].timestamp) > 30) do
                 table.remove(triggeredEvents, 1)
             end
 

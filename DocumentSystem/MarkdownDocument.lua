@@ -1998,7 +1998,7 @@ function MarkdownDocument:EditPanel(args)
                 if i > 1 and string.sub(beforeCaret, i - 1, i - 1) == '[' then
                     return nil
                 end
-                if i < #beforeCaret and string.sub(beforeCaret, i + 1, i + 1) == '[' then
+                if i < #text and string.sub(text, i + 1, i + 1) == '[' then
                     return nil
                 end
                 bracketOpen = i
@@ -2056,6 +2056,7 @@ function MarkdownDocument:EditPanel(args)
         ["item"] = "#dddd66",
         ["title"] = "#cc88dd",
         ["Rich Tag"] = "#dd8844",
+        ["Command"] = "#88bbdd",
     }
 
     -- Descriptions and metadata for rich tags used by autocomplete.
@@ -2121,7 +2122,14 @@ function MarkdownDocument:EditPanel(args)
                 resolvedType = "URL"
             elseif type(resolved) == "table" then
                 resolvedName = rawget(resolved, "name") or rawget(resolved, "description") or rawget(resolved, "monster_type") or displayName
-                resolvedType = rawget(resolved, "typeName") or "Link"
+
+                -- Use the link prefix (e.g. "item", "title") as the display type when it maps to a known table
+                local linkPrefix = string.match(linkText, "^([^:]+):")
+                if linkPrefix ~= nil and MarkdownRender.FindTableFromPrefix(string.lower(linkPrefix)) ~= nil then
+                    resolvedType = linkPrefix
+                else
+                    resolvedType = rawget(resolved, "typeName") or "Link"
+                end
             end
 
             local typeColor = autocompleteTypeColors[resolvedType] or "#88cc88"
@@ -2363,7 +2371,17 @@ function MarkdownDocument:EditPanel(args)
         end
         tagName = string.lower(tagName)
 
-        local meta = richTagDescriptions[tagName] or {}
+        -- Check if this is a macro tag (starts with /)
+        local isMacro = string.sub(tagText, 1, 1) == "/"
+        local meta
+        if isMacro then
+            -- Extract command and display text from macro pattern /command|text
+            local pipePos = string.find(tagText, "|", 1, true)
+            local macroCmd = pipePos and string.sub(tagText, 2, pipePos - 1) or string.sub(tagText, 2)
+            meta = {desc = string.format("Command button: /%s", macroCmd)}
+        else
+            meta = richTagDescriptions[tagName] or {}
+        end
 
         local children = {}
 
@@ -2492,6 +2510,21 @@ function MarkdownDocument:EditPanel(args)
             return
         end
 
+        if result.isMacroCommand then
+            -- Complete a macro command: insert [[/command|Display Text]]
+            DismissAutocomplete(inputElement)
+            local insertion = string.format("[[/%s|%s]]", result.macroCommand, result.macroText)
+            local newText = before .. insertion .. after
+            -- Place caret after the insertion
+            local targetCaretPos = #before + #insertion
+            if resultPanel ~= nil then
+                resultPanel:FireEventTree("editDocument", newText)
+            end
+            charactersUsedLabel:FireEvent("refreshLength", newText)
+            inputElement:SetTextAndCaret(targetCaretPos, newText)
+            return
+        end
+
         if result.isRichTag then
             -- Complete a rich tag name inside [[ ]]
             DismissAutocomplete(inputElement)
@@ -2596,7 +2629,41 @@ function MarkdownDocument:EditPanel(args)
                     AcceptAutocomplete(inputElement, result)
                 end,
                 hover = function(element)
-                    if result.isRichTag or result.isRichTagPrefix then
+                    if result.isMacroCommand then
+                        -- Show a preview of the macro button
+                        local tagContent = string.format("[[/%s|%s]]", result.macroCommand, result.macroText)
+                        local tooltipChildren = {}
+                        if result.desc then
+                            tooltipChildren[#tooltipChildren + 1] = gui.Label{
+                                text = result.desc,
+                                fontSize = 13,
+                                width = "100%",
+                                height = "auto",
+                                color = Styles.textColor,
+                                vpad = 4,
+                            }
+                        end
+                        local previewDoc = MarkdownDocument.new{
+                            content = tagContent,
+                        }
+                        tooltipChildren[#tooltipChildren + 1] = previewDoc:DisplayPanel{
+                            width = "100%",
+                            height = "auto",
+                            vscroll = false,
+                        }
+                        local panel = gui.Panel{
+                            width = 300,
+                            height = "auto",
+                            flow = "vertical",
+                            pad = 6,
+                            children = tooltipChildren,
+                        }
+                        element.tooltip = gui.TooltipFrame(panel, {
+                            interactable = false,
+                            halign = "right",
+                        })
+                        element.tooltip:MakeNonInteractiveRecursive()
+                    elseif result.isRichTag or result.isRichTagPrefix then
                         -- Render a mini document showing what the rich tag looks like.
                         local tagContent
                         if result.patternExample then
@@ -2762,6 +2829,99 @@ function MarkdownDocument:EditPanel(args)
                             takesName = meta.takesName,
                             patternExample = meta.patternExample,
                         }
+                    end
+                end
+            end
+
+            -- When the search text starts with /, offer command completions
+            if string.sub(searchLower, 1, 1) == "/" then
+                local cmdSearch = string.sub(searchLower, 2) -- text after the /
+                local pipePos = string.find(cmdSearch, "|", 1, true)
+                -- Only offer command completions before the pipe
+                if pipePos == nil then
+                    -- Search registered UI commands
+                    local registeredCmds = Commands.GetRegisteredCommands and Commands.GetRegisteredCommands() or {}
+                    for id, info in pairs(registeredCmds) do
+                        local cmdName = info.command
+                        local displayName = info.name or id
+                        -- For setting-based commands, use "toggle settingname"
+                        if cmdName == nil and info.setting ~= nil then
+                            cmdName = string.format("toggle %s", info.setting)
+                        end
+                        if cmdName ~= nil and (#cmdSearch == 0 or string.find(string.lower(cmdName), cmdSearch, 1, true) or string.find(string.lower(displayName), cmdSearch, 1, true)) then
+                            local suggestedText = displayName
+                            results[#results + 1] = {
+                                name = string.format("/%s  -  %s", cmdName, displayName),
+                                link = cmdName,
+                                type = "Command",
+                                isMacroCommand = true,
+                                macroCommand = cmdName,
+                                macroText = suggestedText,
+                                desc = string.format("Runs /%s when clicked", cmdName),
+                            }
+                        end
+                    end
+
+                    -- Search registered macros
+                    local macros = Commands.GetAllMacros and Commands.GetAllMacros() or {}
+                    for name, info in pairs(macros) do
+                        if #cmdSearch == 0 or string.find(string.lower(name), cmdSearch, 1, true) then
+                            -- Skip if already added from registered commands
+                            local alreadyAdded = false
+                            for _, r in ipairs(results) do
+                                if r.isMacroCommand and r.macroCommand == name then
+                                    alreadyAdded = true
+                                    break
+                                end
+                            end
+                            if not alreadyAdded then
+                                local suggestedText = info.summary or name
+                                -- Capitalize first letter for display
+                                suggestedText = string.upper(string.sub(suggestedText, 1, 1)) .. string.sub(suggestedText, 2)
+                                results[#results + 1] = {
+                                    name = string.format("/%s  -  %s", name, info.summary or name),
+                                    link = name,
+                                    type = "Command",
+                                    isMacroCommand = true,
+                                    macroCommand = name,
+                                    macroText = suggestedText,
+                                    desc = info.doc or string.format("Runs /%s when clicked", name),
+                                }
+                            end
+                        end
+                    end
+
+                    -- Also search Commands table directly for callable functions
+                    for name, fn in pairs(Commands) do
+                        if type(fn) == "function" and name ~= "Register" and name ~= "RegisterMacro"
+                           and name ~= "GetMacroInfo" and name ~= "GetAllMacros"
+                           and name ~= "GetRegisteredCommands" and name ~= "AccumulateMenuItems"
+                           and not string.starts_with(name, "_") then
+                            if #cmdSearch == 0 or string.find(string.lower(name), cmdSearch, 1, true) then
+                                -- Skip if already added
+                                local alreadyAdded = false
+                                for _, r in ipairs(results) do
+                                    if r.isMacroCommand and r.macroCommand == name then
+                                        alreadyAdded = true
+                                        break
+                                    end
+                                end
+                                if not alreadyAdded then
+                                    local macroInfo = Commands.GetMacroInfo and Commands.GetMacroInfo(name) or nil
+                                    local summary = macroInfo and macroInfo.summary or name
+                                    local suggestedText = string.upper(string.sub(summary, 1, 1)) .. string.sub(summary, 2)
+                                    results[#results + 1] = {
+                                        name = string.format("/%s", name),
+                                        link = name,
+                                        type = "Command",
+                                        isMacroCommand = true,
+                                        macroCommand = name,
+                                        macroText = suggestedText,
+                                        desc = macroInfo and macroInfo.doc or string.format("Runs /%s when clicked", name),
+                                    }
+                                end
+                            end
+                        end
                     end
                 end
             end

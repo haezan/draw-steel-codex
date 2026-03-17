@@ -1755,8 +1755,11 @@ function TacPanel.Summary()
                 },
                 refreshCharacter = function(element, token)
                     element.data.token = token
+                    local canLookup = dmhub.GetSettingValue("canlookup")
                     if token == nil or (dmhub.isDM and dmhub.tokenVision == nil)
-                        or token.countFloorsWithVisionAbove <= 0 then
+                        or canLookup == "never"
+                        or (canLookup == "opening" and token.countFloorsWithVisionAbove <= 0)
+                        or (canLookup == "always" and token.countFloorsAbove <= 0) then
                         element:SetClass("collapsed", true)
                         return
                     end
@@ -3231,7 +3234,8 @@ function CharacterPanel.CreateLookupPanel()
 
         refresh = function(element)
             local tok = dmhub.currentToken
-            if tok == nil or (dmhub.isDM and dmhub.tokenVision == nil) then
+            local canLookup = dmhub.GetSettingValue("canlookup")
+            if tok == nil or (dmhub.isDM and dmhub.tokenVision == nil) or canLookup == "never" then
                 element:SetClass("collapsed", true)
                 m_maxLookup = -1
                 m_slider = nil
@@ -3239,7 +3243,12 @@ function CharacterPanel.CreateLookupPanel()
             end
 
             local maxLookupSetting = dmhub.GetSettingValue("maxlookup")
-            local maxLookup = tok.countFloorsWithVisionAbove
+            local maxLookup
+            if canLookup == "always" then
+                maxLookup = tok.countFloorsAbove
+            else
+                maxLookup = tok.countFloorsWithVisionAbove
+            end
             if maxLookupSetting >= 0 then
                 maxLookup = math.min(maxLookup, maxLookupSetting)
             end

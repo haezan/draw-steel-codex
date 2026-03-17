@@ -457,6 +457,13 @@ function dmhub.UploadAllMonsters(options)
 	-- dummy implementation for documentation purposes only
 end
 
+--- ImportFile: Imports a single YAML file from the compendium/import/ directory. Detects whether the file contains a monster, a table entry, or a bundle and imports accordingly. Also uploads to the cloud.
+--- @param filename string The name of the YAML file to import from compendium/import/.
+--- @return { monstersImported: number, itemsImported: number, errors: string[] }
+function dmhub.ImportFile(filename)
+	-- dummy implementation for documentation purposes only
+end
+
 --- SearchTable: Searches items in a data table for entries whose string fields match the given search string. Returns a table of matching items, excluding hidden entries.
 --- @param tableName string The name of the table
 --- @param searchString the string to search for.

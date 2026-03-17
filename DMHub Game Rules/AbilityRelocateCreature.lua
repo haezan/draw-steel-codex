@@ -161,15 +161,16 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
             local forcemoveEvent = nil
 			local collisionInfo = nil
+			local abilityDist = ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare
 			if (ability.targeting == "straightline" or ability.targetType == "line") and casterToken.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
-				local movementInfo = casterToken:MarkMovementArrow(targets[1].loc, {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line")})
+				local abilityDistForArrow = abilityDist
+				local movementInfo = casterToken:MarkMovementArrow(targets[1].loc, {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line"), forcedMovementDistance = abilityDistForArrow})
 				if movementInfo ~= nil then
 
 					local loc = targets[1].loc
 
 					local path = movementInfo.path
                 print("RELOCATE:: to", loc.x, loc.y, loc.altitude, "->", path.destination.x, path.destination.y, path.destination.altitude)
-					local abilityDist = ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare
 					local requestDist = math.min(loc:DistanceInTiles(path.origin), abilityDist)
 					local pathDist = path.destination:DistanceInTiles(path.origin)
 
@@ -179,12 +180,21 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 					if pathDist < requestDist then
 						overshoot = abilityDist - pathDist
 
-						collisionInfo = {
-							speed = overshoot,
-							collideWith = movementInfo.collideWith,
-						}
+						--subtract wall break stamina costs so they don't double-count as collision
+						if path.wallBreaks ~= nil then
+							for _,wb in ipairs(path.wallBreaks) do
+								overshoot = overshoot - wb.staminaCost
+							end
+						end
 
-                        options.symbols.cast.forcedMovementCollision = true
+						if overshoot > 0 then
+							collisionInfo = {
+								speed = overshoot,
+								collideWith = movementInfo.collideWith,
+							}
+
+							options.symbols.cast.forcedMovementCollision = true
+						end
 					end
 
                     if movementType == "move" then
@@ -210,6 +220,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     end
 
                     options.symbols.cast:RecordForcedMovementPath(path)
+                    options.symbols.cast:RecordForcedMovementCreature(casterToken.charid)
 				end
 
 				casterToken:ClearMovementArrow()
@@ -230,7 +241,19 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
 
 
-			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), maxCost = 30000, movementType = movementType })
+			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist })
+
+            --fire wallbreak events for any walls broken during the move
+            --(wall erasure and rubble spawning are handled by the engine in TryStraightLineMove)
+            if path ~= nil and path.wallBreaks ~= nil then
+                for _,wb in ipairs(path.wallBreaks) do
+                    casterToken.properties:TriggerEvent("wallbreak", {
+                        speed = wb.staminaCost,
+                        wallType = wb.solidity,
+                        loc = wb.breakLoc,
+                    })
+                end
+            end
 
             --make forced movement happen after the movement so they are in the new location.
             if forcemoveEvent ~= nil then

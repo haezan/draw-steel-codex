@@ -224,7 +224,7 @@ local CalculateStatusIcons = function(token)
 				local hoverText = "test"
                 local statusText = nil
 				local ongoingEffectInfo = ongoingEffectsTable[cond.ongoingEffectid]
-				if ongoingEffectInfo ~= nil and ongoingEffectInfo.statusEffect and (not ongoingEffectInfo.hiddenOnToken) and ((not ongoingEffectInfo.hiddenFromEnemies) or token.isFriendOfPlayer or token.canControl or dmhub.isDM) then
+				if ongoingEffectInfo ~= nil and ongoingEffectInfo.statusEffect and (not ongoingEffectInfo.hiddenOnToken) and ((not ongoingEffectInfo.hiddenFromEnemies) or token.isFriendOfPlayer or token.canControl or (dmhub.isDM and dmhub.tokenVision == nil and dmhub.tokensLoggedInAs == nil)) then
 					local casterInfo = cond:try_get("casterInfo")
 					local condInfo = conditionsTable[ongoingEffectInfo.condition]
                     if condInfo ~= nil then

@@ -118,10 +118,22 @@ end
 
 print("SPLIT::", Commands.SplitArgs("(numheroes + 4) * 3"))
 
+local function ongoingEffectCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local characterOngoingEffects = dmhub.GetTable("characterOngoingEffects")
+    local result = {}
+    for k, v in unhidden_pairs(characterOngoingEffects) do
+        result[#result+1] = v.name
+    end
+    table.sort(result)
+    return result
+end
+
 Commands.RegisterMacro{
     name = "applyongoingeffect",
     summary = "apply an effect",
     doc = "Usage: /applyongoingeffect <effect name>\nApplies given ongoing effect to all tokens.",
+    completions = ongoingEffectCompletions,
     command = function(str)
         str = string.lower(str)
         local characterOngoingEffects = dmhub.GetTable("characterOngoingEffects")
@@ -154,6 +166,7 @@ Commands.RegisterMacro{
     name = "removeongoingeffect",
     summary = "remove an effect",
     doc = "Usage: /removeongoingeffect <effect name>\nRemoves given ongoing effect from all tokens.",
+    completions = ongoingEffectCompletions,
     command = function(str)
         str = string.lower(str)
         local characterOngoingEffects = dmhub.GetTable("characterOngoingEffects")
@@ -489,10 +502,26 @@ Commands.RegisterMacro{
     end,
 }
 
+local function floorCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local floors = game.currentMap.floors
+    local result = {}
+    local seen = {}
+    for i = 1, #floors do
+        local desc = floors[i].description
+        if not seen[desc] then
+            seen[desc] = true
+            result[#result+1] = {text = desc, summary = "floor"}
+        end
+    end
+    return result
+end
+
 Commands.RegisterMacro{
     name = "floor",
     summary = "change active floor",
     doc = "Usage: /floor <floor name>\nChanges active floor to the given floor.",
+    completions = floorCompletions,
     command = function(str)
         local floors = game.currentMap.floors
 
@@ -631,10 +660,26 @@ Commands.RegisterMacro{
     end,
 }
 
+local function tokenNameCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {}
+    local seen = {}
+    for _, token in ipairs(dmhub.allTokens) do
+        local name = token.name or ""
+        if name ~= "" and not seen[name] then
+            seen[name] = true
+            result[#result+1] = name
+        end
+    end
+    table.sort(result)
+    return result
+end
+
 Commands.RegisterMacro{
     name = "hidetoken",
     summary = "hide a token",
     doc = "Usage: /hidetoken <token name>\nMakes given token(s) hidden from players.",
+    completions = tokenNameCompletions,
     command = function(str)
         local allTokens = dmhub.allTokens
 
@@ -650,6 +695,7 @@ Commands.RegisterMacro{
     name = "showtoken",
     summary = "show a token",
     doc = "Usage: /showtoken <token name>\nMakes given token(s) visible to players.",
+    completions = tokenNameCompletions,
     command = function(str)
         local allTokens = dmhub.allTokens
 
@@ -665,6 +711,31 @@ Commands.RegisterMacro{
     name = "emote",
     summary = "play an emote",
     doc = "Usage: /emote <token name> <emote name>\nSets emote active on given token(s). If only one arg, uses selected tokens.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            local result = {{text = "all", summary = "all tokens"}, {text = "heroes", summary = "hero tokens"}, {text = "monsters", summary = "monster tokens"}}
+            local seen = {}
+            for _, token in ipairs(dmhub.allTokens) do
+                local name = token.name or ""
+                if name ~= "" and not seen[name] then
+                    seen[name] = true
+                    result[#result+1] = name
+                end
+            end
+            return result
+        elseif argIndex == 2 then
+            local dataTable = assets.emojiTable
+            local result = {}
+            for k, emoji in pairs(dataTable) do
+                if emoji.emojiType == "Emoji" then
+                    result[#result+1] = {text = k, summary = emoji.description}
+                end
+            end
+            table.sort(result, function(a, b) return a.summary < b.summary end)
+            return result
+        end
+        return {}
+    end,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local tokens = args[1]
@@ -1518,6 +1589,45 @@ Commands.RegisterMacro{
     end,
 }
 
+Commands.RegisterMacro{
+    name = "listmaps",
+    summary = "list all maps",
+    doc = "Usage: /listmaps\nPrints a JSON object mapping map IDs to map names.",
+    command = function(str)
+        local result = {}
+        for _,map in ipairs(game.maps) do
+            result[map.id] = map.description
+        end
+        print(json(result))
+    end,
+}
+
+Commands.RegisterMacro{
+    name = "listmodifiers",
+    summary = "list active modifiers",
+    doc = "Usage: /listmodifiers\nPrints the JSON for each active modifier on the selected token.",
+    command = function(str)
+        local selected = dmhub.selectedTokens
+        if #selected == 0 then
+            print("No token selected.")
+            return
+        end
+
+        local token = selected[1]
+        if token.properties == nil then
+            print("Selected token has no properties.")
+            return
+        end
+
+        local modifiers = token.properties:GetActiveModifiers()
+        print(string.format("Active modifiers for %s: %d", token.description, #modifiers))
+        for i, entry in ipairs(modifiers) do
+            print(string.format("--- Modifier %d ---", i))
+            print(json(entry.mod))
+        end
+    end,
+}
+
 if devmode() then
 
     Commands.RegisterMacro{
@@ -1546,6 +1656,514 @@ if devmode() then
         doc = "Usage: /gc\nForces a Lua garbage collection cycle. Dev only.",
         command = function(str)
             collectgarbage("collect")
+        end,
+    }
+
+    local function ImportChatMessage(text, isError)
+        if ExtChatMessage ~= nil and ExtChatMessage.SendTitled ~= nil then
+            local color = isError and "#ff4444" or "#44ff88"
+            local title = isError and "Import Error" or "Import"
+            ExtChatMessage.SendTitled(text, title, color, dmhub.userid)
+        else
+            chat.Send(text)
+        end
+    end
+
+    local function ValidateChatMessage(text, level)
+        -- level: "error", "warning", "success", "info"
+        if ExtChatMessage ~= nil and ExtChatMessage.SendTitled ~= nil then
+            local colors = {
+                error = "#ff4444",
+                warning = "#ffcc44",
+                success = "#44ff88",
+                info = "#88bbff",
+            }
+            local titles = {
+                error = "Validate: ERROR",
+                warning = "Validate: Warning",
+                success = "Validate",
+                info = "Validate",
+            }
+            local color = colors[level] or "#88bbff"
+            local title = titles[level] or "Validate"
+            ExtChatMessage.SendTitled(text, title, color, dmhub.userid)
+        else
+            chat.Send(text)
+        end
+    end
+
+    -- Known valid table names (case-sensitive).
+    local g_validTableNames = {
+        characterOngoingEffects = true,
+        charConditions = true,
+        standardAbilities = true,
+        tbl_Gear = true,
+        MonsterGroup = true,
+        classes = true,
+        subclasses = true,
+        kits = true,
+        cultures = true,
+        feats = true,
+        Skills = true,
+        damageTypes = true,
+        characterResources = true,
+        complications = true,
+        titles = true,
+        races = true,
+        globalRuleMods = true,
+        customAttributes = true,
+        conditionRiders = true,
+        encounters = true,
+        backgrounds = true,
+        equipmentCategories = true,
+        documents = true,
+        careers = true,
+        languages = true,
+        Deities = true,
+        DeityDomains = true,
+        minionWithCaptain = true,
+        importerPowerTableEffects = true,
+        importerMonsterTraits = true,
+        VisionType = true,
+        parties = true,
+        adventureTables = true,
+        compendiumPermissions = true,
+        characteristicsTable = true,
+        importerAbilityEffects = true,
+        pdfReferences = true,
+        featurePrefabs = true,
+        creatureTemplates = true,
+        languageRelations = true,
+        importerStandardFeatures = true,
+        powerRolls = true,
+        weaponProperties = true,
+        currency = true,
+        characterTypes = true,
+        cultureAspects = true,
+        nameGenerators = true,
+    }
+
+    -- Valid ongoing effect duration values for ApplyOngoingEffectBehavior.
+    local g_validEffectDurations = {
+        ["none"] = true,
+        ["end_of_next_turn"] = true,
+        ["eoe"] = true,
+        ["save_ends"] = true,
+        ["eoe_or_dying"] = true,
+        ["endround"] = true,
+        ["endnextround"] = true,
+        ["until_rest"] = true,
+        ["until_long_rest"] = true,
+        ["momentary"] = true,
+    }
+
+    -- Derive the import directory path from the export infrastructure.
+    -- Calls ExportTable on a small table to get the base compendium path,
+    -- then replaces the tables subdirectory with import.
+    local g_importBasePath = nil
+    local function GetImportBasePath()
+        if g_importBasePath ~= nil then
+            return g_importBasePath
+        end
+        -- ExportTable returns {directory = "<basePath>/tables/<tableName>"}
+        -- We need <basePath> without "/tables/<tableName>", then append "/import"
+        local result = dmhub.ExportTable("damageTypes", {individualFiles = false})
+        if result ~= nil and result.directory ~= nil then
+            local dir = result.directory
+            -- dir looks like ".../compendium/tables/damageTypes"
+            -- Strip off "/tables/damageTypes" (or similar) to get ".../compendium"
+            -- Then append "/import"
+            local compendiumDir = string.match(dir, "^(.+)[/\\]tables[/\\]")
+            if compendiumDir then
+                g_importBasePath = compendiumDir .. "/import/"
+                return g_importBasePath
+            end
+        end
+        return nil
+    end
+
+    -- Read a YAML file from compendium/import/ and return its text content.
+    local function ReadImportFile(filename)
+        local basePath = GetImportBasePath()
+        if basePath == nil then
+            return nil, "Could not determine import directory path"
+        end
+        local fullPath = basePath .. filename
+        local text = nil
+        local readErr = nil
+        text = dmhub.ReadTextFile(fullPath, function(err)
+            readErr = err
+        end)
+        if text == nil then
+            return nil, readErr or string.format("File not found: %s", filename)
+        end
+        return text, nil
+    end
+
+    -- Validate a single YAML file's text content.
+    -- Returns errors (list of strings) and warnings (list of strings).
+    local function ValidateYamlText(text, filename)
+        local errors = {}
+        local warnings = {}
+
+        -- Helper to add an error
+        local function err(msg)
+            errors[#errors+1] = string.format("[%s] %s", filename, msg)
+        end
+        local function warn(msg)
+            warnings[#warnings+1] = string.format("[%s] %s", filename, msg)
+        end
+
+        -- Check for non-ASCII characters
+        local nonAsciiLine = nil
+        local lineNum = 0
+        for line in string.gmatch(text, "[^\n]*") do
+            lineNum = lineNum + 1
+            if string.find(line, "[\128-\255]") then
+                nonAsciiLine = lineNum
+                break
+            end
+        end
+        if nonAsciiLine then
+            err(string.format("Non-ASCII characters found on line %d (files must be ASCII-only)", nonAsciiLine))
+        end
+
+        -- Detect if this is a bundle file
+        local isBundle = string.find(text, "^_bundle:") ~= nil or string.find(text, "\n_bundle:") ~= nil
+
+        -- Check _table field values
+        for tableName in string.gmatch(text, "_table:%s*([%w_]+)") do
+            if not g_validTableNames[tableName] then
+                -- Check for case-insensitive match to give a better error
+                local suggestion = nil
+                local lowerName = string.lower(tableName)
+                for validName, _ in pairs(g_validTableNames) do
+                    if string.lower(validName) == lowerName then
+                        suggestion = validName
+                        break
+                    end
+                end
+                if suggestion then
+                    err(string.format("Invalid table name '%s' - did you mean '%s'? (table names are case-sensitive)", tableName, suggestion))
+                else
+                    err(string.format("Unknown table name '%s' - check against known table names", tableName))
+                end
+            end
+        end
+
+        -- Check for CharacterOngoingEffect missing required fields
+        if string.find(text, "CharacterOngoingEffect") then
+            -- Check for missing iconid
+            -- Look for entries that have __typeName: CharacterOngoingEffect
+            -- In YAML, iconid should appear as a sibling field
+            -- Simple heuristic: if CharacterOngoingEffect appears but no iconid in the file
+            if not string.find(text, "iconid:") then
+                err("CharacterOngoingEffect found but no 'iconid' field -- iconid is required (crashes if missing)")
+            elseif string.find(text, "iconid:%s*$") or string.find(text, "iconid:%s*\n") then
+                err("CharacterOngoingEffect has empty iconid -- iconid is required (crashes if missing)")
+            end
+            -- Check for iconid: null or iconid: nil
+            if string.find(text, "iconid:%s*null") or string.find(text, "iconid:%s*nil") then
+                err("CharacterOngoingEffect has null/nil iconid -- iconid is required (crashes if missing)")
+            end
+            -- Check for missing display table
+            if not string.find(text, "display:") then
+                err("CharacterOngoingEffect found but no 'display' table -- display is required")
+            end
+        end
+
+        -- Check for CharacterCondition missing required fields
+        if string.find(text, "__typeName:%s*CharacterCondition") then
+            if not string.find(text, "iconid:") then
+                err("CharacterCondition found but no 'iconid' field -- iconid is required")
+            end
+            if not string.find(text, "display:") then
+                err("CharacterCondition found but no 'display' table -- display is required")
+            end
+            if not string.find(text, "domains:") then
+                err("CharacterCondition found but no 'domains' field -- domains is required")
+            end
+        end
+
+        -- Check for CharacterFeatureChoice missing allowDuplicateChoices
+        if string.find(text, "CharacterFeatureChoice") then
+            if not string.find(text, "allowDuplicateChoices") then
+                err("CharacterFeatureChoice found but 'allowDuplicateChoices' is missing -- this field is REQUIRED (crashes if omitted)")
+            end
+        end
+
+        -- Check for GoblinScript boolean pitfall: activationCondition: "true" or "false"
+        if string.find(text, 'activationCondition:%s*"true"') then
+            err('activationCondition: "true" found -- GoblinScript does not recognize "true", use "1" instead')
+        end
+        if string.find(text, 'activationCondition:%s*"false"') then
+            err('activationCondition: "false" found -- GoblinScript does not recognize "false", use "0" instead')
+        end
+
+        -- Check for invalid duration values on ApplyOngoingEffectBehavior
+        -- "nextturn" is aura-only, not valid for ongoing effect durations
+        if string.find(text, "ActivatedAbilityApplyOngoingEffectBehavior") then
+            if string.find(text, 'duration:%s*"?nextturn"?') then
+                err('duration: "nextturn" is invalid for ApplyOngoingEffectBehavior -- use "end_of_next_turn" instead (nextturn is aura-only)')
+            end
+        end
+
+        -- Check for stability attribute (common mistake)
+        if string.find(text, "attribute:%s*stability") then
+            warn("attribute: stability found -- 'stability' is not a valid attribute ID, use 'forcedmoveresistance' instead")
+        end
+
+        -- Check for empty roll on PowerRollBehavior
+        if string.find(text, "ActivatedAbilityPowerRollBehavior") and string.find(text, "roll: ''") then
+            err("ActivatedAbilityPowerRollBehavior has empty roll: '' -- must be a dice formula like '2d10 + Might or Agility'")
+        end
+
+        -- Check for targetType: enemies (invalid)
+        if string.find(text, "targetType:%s*enemies") then
+            err("targetType: enemies is not valid -- use targetType: target with targetAllegiance: enemy")
+        end
+
+        -- Check for missing id field on entries that need it
+        -- For non-bundle files with __typeName, check for id
+        if not isBundle then
+            if string.find(text, "__typeName:") then
+                if not string.find(text, "\nid:") and not string.find(text, "^id:") then
+                    warn("Entry has __typeName but no top-level 'id' field -- most types require an id")
+                end
+            end
+        end
+
+        -- Check for missing guid on CharacterFeature
+        if string.find(text, "__typeName:%s*CharacterFeature") then
+            if not string.find(text, "guid:") then
+                warn("CharacterFeature found but no 'guid' field anywhere -- guid is required on features")
+            end
+        end
+
+        -- Check for missing guid on CharacterModifier
+        if string.find(text, "__typeName:%s*CharacterModifier") then
+            if not string.find(text, "behavior:") then
+                warn("CharacterModifier found but no 'behavior' field -- behavior is required on modifiers")
+            end
+        end
+
+        -- Check for Class missing levels
+        if string.find(text, "__typeName:%s*Class") and string.find(text, "_table:%s*classes") then
+            if not string.find(text, "levels:") then
+                err("Class entry found but no 'levels' field -- levels is required on classes")
+            end
+        end
+
+        -- Check for Kit missing type
+        if string.find(text, "__typeName:%s*Kit") then
+            if not string.find(text, "\ntype:") and not string.find(text, "^type:") then
+                warn("Kit found but no 'type' field -- type is required (e.g. martial, caster)")
+            end
+        end
+
+        -- Check for monster missing info.properties
+        if string.find(text, "\ninfo:") or string.find(text, "^info:") then
+            if not string.find(text, "properties:") then
+                warn("Monster entry found (has 'info') but no 'properties' field inside info")
+            end
+        end
+
+        -- Check for duplicate ids within the same file
+        local ids = {}
+        local duplicateIds = {}
+        for id in string.gmatch(text, "\nid:%s*([%x%-]+)") do
+            if ids[id] then
+                if not duplicateIds[id] then
+                    err(string.format("Duplicate id '%s' found in the same file", id))
+                    duplicateIds[id] = true
+                end
+            else
+                ids[id] = true
+            end
+        end
+        -- Also check the first line
+        local firstId = string.match(text, "^id:%s*([%x%-]+)")
+        if firstId then
+            if ids[firstId] then
+                if not duplicateIds[firstId] then
+                    err(string.format("Duplicate id '%s' found in the same file", firstId))
+                end
+            end
+        end
+
+        -- Check for empty id or guid fields
+        if string.find(text, "\nid:%s*\n") or string.find(text, "\nid:%s*$") or string.find(text, "^id:%s*\n") then
+            err("Empty 'id' field found -- id must be a non-empty string")
+        end
+        if string.find(text, "\nguid:%s*\n") or string.find(text, "\nguid:%s*$") then
+            err("Empty 'guid' field found -- guid must be a non-empty string")
+        end
+
+        -- Check for _include references in bundles (verify the referenced files exist)
+        if isBundle then
+            local basePath = GetImportBasePath()
+            if basePath then
+                for includeFile in string.gmatch(text, "_include:%s*([%w%.%-_/]+)") do
+                    local includePath = basePath .. includeFile
+                    local includeText = dmhub.ReadTextFile(includePath, function() end)
+                    if includeText == nil then
+                        err(string.format("_include references '%s' but file not found", includeFile))
+                    end
+                end
+            end
+        end
+
+        -- Check for complication/title/race/background missing modifierInfo
+        if string.find(text, "__typeName:%s*CharacterComplication") then
+            if not string.find(text, "modifierInfo:") then
+                warn("CharacterComplication found but no 'modifierInfo' field -- modifierInfo is required")
+            end
+        end
+        if string.find(text, "__typeName:%s*Title") then
+            if not string.find(text, "modifierInfo:") then
+                warn("Title found but no 'modifierInfo' field -- modifierInfo is required")
+            end
+        end
+        if string.find(text, "__typeName:%s*Race") and string.find(text, "_table:%s*races") then
+            if not string.find(text, "modifierInfo:") then
+                warn("Race (ancestry) found but no 'modifierInfo' field -- modifierInfo is required")
+            end
+        end
+
+        -- Check for equipment missing equipmentCategory
+        if (string.find(text, "__typeName:%s*equipment") or string.find(text, "__typeName:%s*weapon") or string.find(text, "__typeName:%s*armor")) then
+            if string.find(text, "_table:%s*tbl_Gear") then
+                if not string.find(text, "equipmentCategory:") then
+                    warn("Equipment entry found but no 'equipmentCategory' field")
+                end
+            end
+        end
+
+        return errors, warnings
+    end
+
+    -- Validate one or more files. Returns true if all pass, false if any errors.
+    local function ValidateFiles(filenames)
+        local allErrors = {}
+        local allWarnings = {}
+        local filesRead = 0
+
+        for _, filename in ipairs(filenames) do
+            local text, readErr = ReadImportFile(filename)
+            if text == nil then
+                allErrors[#allErrors+1] = string.format("[%s] %s", filename, readErr or "Could not read file")
+            else
+                filesRead = filesRead + 1
+                local fileErrors, fileWarnings = ValidateYamlText(text, filename)
+                for _, e in ipairs(fileErrors) do
+                    allErrors[#allErrors+1] = e
+                end
+                for _, w in ipairs(fileWarnings) do
+                    allWarnings[#allWarnings+1] = w
+                end
+            end
+        end
+
+        -- Report results
+        for _, w in ipairs(allWarnings) do
+            ValidateChatMessage(w, "warning")
+        end
+        for _, e in ipairs(allErrors) do
+            ValidateChatMessage(e, "error")
+        end
+
+        if #allErrors == 0 and #allWarnings == 0 and filesRead > 0 then
+            local fileStr = #filenames == 1 and filenames[1] or string.format("%d files", filesRead)
+            ValidateChatMessage(string.format("Validation passed for %s -- no issues found", fileStr), "success")
+        elseif filesRead > 0 then
+            ValidateChatMessage(string.format("Validation: %d error(s), %d warning(s) in %d file(s)", #allErrors, #allWarnings, filesRead), #allErrors > 0 and "error" or "warning")
+        end
+
+        return #allErrors == 0
+    end
+
+    Commands.RegisterMacro{
+        name = "validate",
+        summary = "validate YAML import files before importing",
+        doc = "Usage: /validate <filename> [filename2 ...]\nValidates one or more YAML files from the compendium/import/ directory without importing them. Checks for common errors: invalid table names, missing required fields, GoblinScript pitfalls, non-ASCII characters, duplicate ids, and more.\n\nExamples:\n  /validate elf-warrior.yaml\n  /validate outlaw.yaml mundane.yaml\n  /validate complications-all.yaml",
+        command = function(str)
+            str = string.gsub(str, "^%s+", "")
+            str = string.gsub(str, "%s+$", "")
+            if str == "" then
+                ValidateChatMessage("Usage: /validate <filename> [filename2 ...]", "info")
+                return
+            end
+
+            local files = {}
+            for word in string.gmatch(str, "%S+") do
+                files[#files+1] = word
+            end
+
+            ValidateFiles(files)
+        end,
+    }
+
+    Commands.RegisterMacro{
+        name = "import",
+        summary = "import YAML files from compendium/import/",
+        doc = "Usage: /import <filename> [filename2 ...]\nImports one or more YAML files from the compendium/import/ directory. Runs validation first and refuses to import if errors are found. Each file can contain a monster, a table entry (with _table metadata), or a bundle of multiple items (with _bundle). Bundles support _include directives to reference other YAML files.\n\nExamples:\n  /import elf-warrior.yaml\n  /import outlaw.yaml mundane.yaml vow-of-duty.yaml\n  /import complications-all.yaml",
+        command = function(str)
+            str = string.gsub(str, "^%s+", "")
+            str = string.gsub(str, "%s+$", "")
+            if str == "" then
+                ImportChatMessage("Usage: /import <filename> [filename2 ...]", true)
+                return
+            end
+
+            local files = {}
+            for word in string.gmatch(str, "%S+") do
+                files[#files+1] = word
+            end
+
+            -- Run validation first
+            local valid = ValidateFiles(files)
+            if not valid then
+                ImportChatMessage("Import aborted -- fix validation errors above and retry", true)
+                return
+            end
+
+            local totalMonsters = 0
+            local totalItems = 0
+            local totalErrors = {}
+            local filesProcessed = 0
+
+            for _, filename in ipairs(files) do
+                local result = dmhub.ImportFile(filename)
+                if result == nil then
+                    totalErrors[#totalErrors+1] = string.format("Failed to resolve: %s", filename)
+                else
+                    totalMonsters = totalMonsters + (result.monstersImported or 0)
+                    totalItems = totalItems + (result.itemsImported or 0)
+                    filesProcessed = filesProcessed + 1
+                    for _, err in ipairs(result.errors or {}) do
+                        totalErrors[#totalErrors+1] = tostring(err)
+                    end
+                end
+            end
+
+            local parts = {}
+            if totalMonsters > 0 then
+                parts[#parts+1] = string.format("%d monster(s)", totalMonsters)
+            end
+            if totalItems > 0 then
+                parts[#parts+1] = string.format("%d table item(s)", totalItems)
+            end
+
+            if #parts > 0 then
+                local fileStr = #files == 1 and files[1] or string.format("%d files", filesProcessed)
+                ImportChatMessage(string.format("Imported %s from %s", table.concat(parts, ", "), fileStr), false)
+            else
+                ImportChatMessage(string.format("No items imported from %s", str), true)
+            end
+
+            for _, err in ipairs(totalErrors) do
+                ImportChatMessage(err, true)
+            end
         end,
     }
 end

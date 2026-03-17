@@ -25,6 +25,7 @@ function Commands.RegisterMacro(args)
     Commands._macros[name] = {
         doc = doc,
         summary = summary,
+        completions = args.completions,
     }
 end
 
@@ -34,6 +35,36 @@ end
 
 function Commands.GetAllMacros()
     return Commands._macros
+end
+
+-- Parse the text after a /command into structured argument info.
+-- Returns macroName, args (completed args), partial (current partial arg), argIndex
+function Commands.GetCurrentArg(text)
+    local macroName = string.match(text, "^/([%w_]+)%s")
+    if macroName == nil then
+        return nil
+    end
+    local afterCommand = string.match(text, "^/%S+%s(.*)$") or ""
+    local args = {}
+    local current = {}
+    local inQuote = false
+    for i = 1, #afterCommand do
+        local c = string.sub(afterCommand, i, i)
+        if c == '"' then
+            inQuote = not inQuote
+            current[#current+1] = c
+        elseif c == ' ' and not inQuote then
+            if #current > 0 then
+                args[#args+1] = table.concat(current)
+                current = {}
+            end
+        else
+            current[#current+1] = c
+        end
+    end
+    local partial = table.concat(current)
+    local argIndex = #args + 1
+    return macroName, args, partial, argIndex
 end
 
 --- @param table table
@@ -743,7 +774,7 @@ Commands.RegisterMacro{
     end,
 }
 
-local function DeepCopyInternal(t)
+local function DeepCopyInternal(t, visited)
     local t_type = type(t)
     if t_type ~= "table" then
         if t_type == "userdata" then
@@ -752,10 +783,15 @@ local function DeepCopyInternal(t)
         return t
     end
 
+    if visited[t] then
+        return visited[t]
+    end
+
     local copy = {}
+    visited[t] = copy
     for k, v in next, t do
 	    if type(k) ~= "string" or string.sub(k,1,5) ~= "_tmp_" then
-            copy[k] = DeepCopyInternal(v)
+            copy[k] = DeepCopyInternal(v, visited)
         else
             copy[k] = v
         end
@@ -772,7 +808,7 @@ end
 local g_profileDeepCopy = dmhub.ProfileMarker("LuaDeepCopy")
 function DeepCopy(t)
     local _ = g_profileDeepCopy.Begin
-    local result = DeepCopyInternal(t)
+    local result = DeepCopyInternal(t, {})
     local _ = g_profileDeepCopy.End
     return result
 end

@@ -1143,7 +1143,7 @@ Kit.lookupSymbols = {
 				return 0
 			end
 			if id ~= nil then
-				local bonuses = c:DamageBonuses()[id]
+				local bonuses = c:DamageBonuses()[string.lower(id)]
 				if bonuses ~= nil then
 					return bonuses[tier]
 				end

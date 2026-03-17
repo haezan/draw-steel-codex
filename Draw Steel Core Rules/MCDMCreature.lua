@@ -1088,6 +1088,38 @@ creature.RegisterSymbol {
     },
 }
 
+creature.RegisterSymbol{
+    symbol = "magictreasurecount",
+    lookup = function(self)
+        local gearTable = dmhub.GetTable("tbl_Gear")
+        local count = 0
+
+        -- Count equipped magic items
+        for _, itemid in ipairs(self:EquipmentInUse()) do
+            local item = gearTable[itemid]
+            if item ~= nil and item.keywords["Magic"] then
+                count = count + 1
+            end
+        end
+
+        -- Count carried (inventory) magic items
+        for itemid, info in pairs(self:try_get("inventory", {})) do
+            local item = gearTable[itemid]
+            if item ~= nil and item.keywords["Magic"] then
+                count = count + (info.quantity or 1)
+            end
+        end
+
+        return count
+    end,
+    help = {
+        name = "Magic Treasure Count",
+        type = "number",
+        desc = "The number of magic treasures this creature has equipped or carried.",
+        seealso = {},
+    },
+}
+
 function creature:RecoveriesAvailableToSpend()
     local usage = self:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
     local max = self:GetResources()[CharacterResource.recoveryResourceId] or 0
@@ -3818,7 +3850,7 @@ function creature:PersistentAbilities()
         if q == nil or q.hidden then
             break
         elseif (q.round or 0) > (a.round or 0) or ((q.round or 0) == (a.round or 0) and (q.turn or 0) > (a.turn or 0)) then
-            if a.ability == nil then
+            if a.ability == nil or type(a.ability) ~= "table" or getmetatable(a.ability) == nil then
                 break
             end
             local ability = a.ability:MakeTemporaryClone()
@@ -3831,7 +3863,10 @@ function creature:PersistentAbilities()
             end
 
             if persistenceMode == "recast_new" and a.ability:try_get("recastNewAbility") then
-                ability = a.ability.recastNewAbility:MakeTemporaryClone()
+                local recastAbility = a.ability.recastNewAbility
+                if recastAbility ~= nil and type(recastAbility) == "table" and getmetatable(recastAbility) ~= nil then
+                    ability = recastAbility:MakeTemporaryClone()
+                end
             end
 
             local newAbility = TriggeredAbility.Create()
@@ -4479,7 +4514,7 @@ local function GroupingHud(groupid)
                 end
 
                 if count <= 1 then
-                    sheetParent:Destroy()
+                    sheetParent:DestroySelf()
                     return
                 end
 
@@ -4561,7 +4596,7 @@ local function GroupingHud(groupid)
                 for key, line in pairs(m_lines) do
                     if g_initiativeGroupings[groupid].tokens[key] == nil then
                         changes = true
-                        line:Destroy()
+                        line:DestroySelf()
                         m_lines[key] = nil
                     end
                 end
