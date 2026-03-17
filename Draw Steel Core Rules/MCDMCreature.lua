@@ -3121,6 +3121,22 @@ function creature:GetModifiersForPowerRoll(roll, rollType, options)
     return result
 end
 
+function creature:GetAfterRollModifiersForPowerRoll(rollType, options)
+    options = options or {}
+    local result = {}
+    local modifiers = self:GetActiveModifiers()
+    for _, mod in ipairs(modifiers) do
+        local m = mod.mod:DescribeModifyPowerRollAfter(mod, self, rollType, options)
+        if m ~= nil then
+            m.hint = m.modifier:HintModifyPowerRollsAfter(mod, self, rollType, options)
+            if m.hint ~= nil then
+                result[#result + 1] = m
+            end
+        end
+    end
+    return result
+end
+
 function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers)
     local attrid = nil
     local bestModifier = nil
