@@ -16,6 +16,8 @@ local mod = dmhub.GetModLoading()
 ```
 This gives access to the current module interface. The `mod` object is used to track module lifecycle (e.g., `mod.unloaded`).
 
+**IMPORTANT: Do not create new Lua files.** Lua files are registered through the DMHub module system and will not auto-load just by being placed on disk. Adding a `require` in `main.lua` for a file that hasn't been registered will cause a load failure. If new code is needed, add it to an existing file in the appropriate module. If a new file is truly necessary, ask the user to create and register it through the DMHub module system.
+
 ## Repository Structure
 
 Each top-level directory is a "mod" (module) loaded by DMHub. Key layers:
