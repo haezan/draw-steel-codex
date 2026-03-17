@@ -102,13 +102,46 @@ function ActivatedAbilityRoutineControlBehavior:Cast(ability, casterToken, targe
                 end
             end,
 
+            hover = function(element)
+                element.tooltip = gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    bgimage = "panels/square.png",
+                    bgcolor = "#222222e9",
+                    pad = 8,
+                    cornerRadius = 4,
+                    capturedAbility:Render{token = casterToken, width = 400},
+                }
+            end,
+
             gui.Label{
                 classes = {"routine-chip-label"},
                 text = capturedAbility.name,
-                hover = gui.Tooltip(capturedAbility.effect),
             },
         }
     end
+
+    -- Add a "None" chip at the end to clear all selections.
+    chipPanels[#chipPanels+1] = gui.Panel{
+        classes = {"routine-chip"},
+        flow = "horizontal",
+
+        press = function(element)
+            -- Clear all selections.
+            for guid, _ in pairs(selectedRoutines) do
+                selectedRoutines[guid] = nil
+                local el = chipElements[guid]
+                if el ~= nil then
+                    el:SetClass("routine-chip-selected", false)
+                end
+            end
+        end,
+
+        gui.Label{
+            classes = {"routine-chip-label"},
+            text = "None",
+        },
+    }
 
     -- Assemble main content.
     local mainChildren = {}
