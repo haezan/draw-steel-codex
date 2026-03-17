@@ -244,10 +244,8 @@ local g_improvSymbols = {
 CharacterModifier.RegisterImprovementParam{
     id = "range",
     text = "Range Bonus",
-    apply = function(ability, value, caster, symbols)
-        local saved = ability.range
-        ability.range = ability:GetRange(caster, symbols) + value
-        return function() ability.range = saved end
+    accumulate = function(ability, value, caster, symbols)
+        symbols.abilityRangeBonus = (symbols.abilityRangeBonus or 0) + value
     end,
     documentation = {
         help = "This GoblinScript is added to the range of the ability in squares.",
@@ -262,33 +260,18 @@ CharacterModifier.RegisterImprovementParam{
     },
 }
 
-CharacterModifier.RegisterImprovementParam{
-    id = "line_distance",
-    text = "Line Distance Bonus",
-    apply = function(ability, value, caster, symbols)
-        local saved = ability.lineDistance
-        ability.lineDistance = ability:GetLineDistance(caster, symbols) + value
-        return function() ability.lineDistance = saved end
-    end,
-    documentation = {
-        help = "This GoblinScript is added to the line distance of the ability in squares.",
-        output = "number",
-        examples = {
-            { script = "2", text = "Adds 2 squares to line distance." },
-        },
-        subject = creature.helpSymbols,
-        subjectDescription = "The creature with this improvement.",
-        symbols = g_improvSymbols,
-    },
-}
 
 CharacterModifier.RegisterImprovementParam{
     id = "radius",
     text = "Radius Bonus",
-    apply = function(ability, value, caster, symbols)
-        local saved = ability.radius
-        ability.radius = ability:GetRadius(caster, symbols) + value
-        return function() ability.radius = saved end
+    accumulate = function(ability, value, caster, symbols)
+        -- Burst abilities (targetType == "all") use GetRange as the burst radius,
+        -- so accumulate into abilityRangeBonus which GetRange will add.
+        if ability:try_get("targetType") == "all" then
+            symbols.abilityRangeBonus = (symbols.abilityRangeBonus or 0) + value
+        else
+            symbols.abilityRadiusBonus = (symbols.abilityRadiusBonus or 0) + value
+        end
     end,
     documentation = {
         help = "This GoblinScript is added to the radius of the ability in squares.",
@@ -305,10 +288,11 @@ CharacterModifier.RegisterImprovementParam{
 CharacterModifier.RegisterImprovementParam{
     id = "target_count",
     text = "Target Count Bonus",
-    apply = function(ability, value, caster, symbols)
-        local saved = symbols.numtargetsoverride
-        symbols.numtargetsoverride = ability:GetNumTargets(caster, {}) + value
-        return function() symbols.numtargetsoverride = saved end
+    accumulate = function(ability, value, caster, symbols)
+        -- Use a helper to accumulate across multiple improvements, then set override.
+        local bonus = (symbols._abilityTargetCountBonus or 0) + value
+        symbols._abilityTargetCountBonus = bonus
+        symbols.numtargetsoverride = ability:GetNumTargets(caster, {}) + bonus
     end,
     documentation = {
         help = "This GoblinScript is added to the number of targets for the ability.",

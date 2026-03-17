@@ -27,8 +27,8 @@ local GOLD_BORDER = "#5C3D10"
 local GOLD_BORDER02 = "#3F2E1F"
 local CREAM = "#FFFEF8"
 local MUTED = "#8A8474"
-local DIM = "#5C6860"
-local DIMMER = "#3A4A44"
+local DIM = "#B4D1C6"
+local DIMMER = "#758B7D"
 local TEAL = "#009C7D"
 local TEAL_HEAL = "#2D6A4F"
 local RED = "#D53031"
@@ -259,13 +259,12 @@ TacPanelStyles.SummaryInfo = {
     -- Control buttons below portrait
     {
         selectors = {"vision-btn"},
-        bgcolor = TEAL_HEAL,
         halign = "left",
         valign = "top",
         pad = 4,
         border = 1,
         cornerRadius = 4,
-        borderColor = DIMMER,
+        borderColor = GRAY02,
     },
     {
         selectors = {"vision-btn", "on"},
@@ -451,19 +450,20 @@ TacPanelStyles.Stamina = {
         textAlignment = "center",
         fontFace = "Berling",
         fontSize = TacPanelSizes.Fonts.stamBoxTitle,
+        color = CREAM,
     },
     {
         selectors = {"label", "stambox-title", "harm"},
-        color = RED,
+        -- color = RED,
     },
     {
         selectors = {"label", "stambox-title", "heal"},
-        color = TEAL_HEAL,
+        -- color = TEAL_HEAL,
     },
     {
         selectors = {"label", "stambox-title", "temp"},
         fontSize = TacPanelSizes.Fonts.stamBoxTitle - 1,
-        color = TEMP_STAM,
+        -- color = TEMP_STAM,
     },
     {
         selectors = {"input", "stambox-input"},
@@ -495,6 +495,7 @@ TacPanelStyles.Stamina = {
     {
         selectors = {"stambox-input", "temp", "focus"},
         fontFace = "Newzald",
+        color = CREAM,
     },
     {
         selectors = {"label", "stambox-stam", "current"},
@@ -845,7 +846,7 @@ TacPanelStyles.MovementPanel = {
         height = "auto",
         valign = "top",
         halign = "center",
-        color = "muted",
+        color = MUTED,
         fontFace = "Berling",
         fontSize = TacPanelSizes.Fonts.movePanelTitle,
         textAlignment = "center",
@@ -1017,7 +1018,7 @@ TacPanelStyles.HeroicResources = {
         lmargin = 8,
         fontFace = "Berling",
         fontSize = TacPanelSizes.Fonts.growHRTitle,
-        color = GOLD,
+        color = GOLD_LIGHT,
         bold = true,
     },
     {
@@ -1370,6 +1371,19 @@ TacPanelStyles.Conditions = {
         fontSize = TacPanelSizes.Fonts.condAdd,
         color = DIM,
     },
+    {   -- "No conditions" placeholder
+        selectors = {"label", "cond-empty"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        lmargin = 8,
+        fontFace = "Berling",
+        fontSize = 16,
+        color = DIM,
+        bold = false,
+        italics = true,
+    },
     {   -- Custom condition input
         selectors = {"input", "cond-custom-input"},
         width = "94%",
@@ -1480,7 +1494,6 @@ TacPanelStyles.AddConditionMenu = {
         vmargin = 6,
     },
 }
-
 TacPanelStyles.Resistances = {
     -- Container: side-by-side
     { selectors = {"panel", "res-container"},
@@ -1936,6 +1949,14 @@ function TacPanel.HeroicResourcesBox()
             flow = "horizontal",
             gui.Panel{
                 classes = {"icon", "heroic-resources"},
+                refreshCharacter = function(element, token)
+                    local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+                    local icon = classInfo ~= nil and classInfo:try_get("heroicResourceIcon", PLACEHOLDER_TOKEN)
+                    element.bgimage = icon
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
             },
             gui.Label{
                 classes = {"tokenbox", "value", "heroic-resources"},
@@ -2161,8 +2182,8 @@ function TacPanel.Summary()
                 height = TacPanelSizes.VisionBtn.size,
                 refreshCharacter = function(element, token)
                     local bgcolor = (token.properties.selectedLoadout == 1)
-                        and TEAL
-                        or DIM
+                        and GOLD_LIGHT
+                        or GRAY02
                     element.selfStyle.bgcolor = bgcolor
                 end,
                 setToken = function(element, token)
@@ -2414,42 +2435,41 @@ function TacPanel.RecoveryPips(recoveryid, recoveryInfo)
 
         gui.Panel{
             classes = {"recovery-pip-row"},
+            updatePips = function(element, info)
+                local rowCount = math.min(info.maxRec, 10)
+                for i = #element.children + 1, rowCount do
+                    element:AddChild(gui.Panel{
+                        classes = {"recovery-pip"},
+                    })
+                end
+                for i, child in ipairs(element.children) do
+                    child:SetClass("collapsed", i > rowCount)
+                    child:SetClass("filled", i <= info.current)
+                end
+            end,
         },
         gui.Panel{
             classes = {"recovery-pip-row"},
+            updatePips = function(element, info)
+                local rowCount = math.max(0, info.maxRec - 10)
+                for i = #element.children + 1, rowCount do
+                    element:AddChild(gui.Panel{
+                        classes = {"recovery-pip"},
+                    })
+                end
+                for i, child in ipairs(element.children) do
+                    child:SetClass("collapsed", i > rowCount)
+                    child:SetClass("filled", (i + 10) <= info.current)
+                end
+                element:SetClass("collapsed", rowCount <= 0)
+            end,
         },
 
         refreshCharacter = function(element, token)
             local maxRec = token.properties:GetResources()[recoveryid] or 0
             local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
             local current = max(0, maxRec - usage)
-
-            local row1 = element.children[1]
-            local row2 = element.children[2]
-            local row1Count = math.min(maxRec, 10)
-            local row2Count = math.max(0, maxRec - 10)
-
-            for i = #row1.children + 1, row1Count do
-                row1:AddChild(gui.Panel{
-                    classes = {"recovery-pip"},
-                })
-            end
-            for i = #row2.children + 1, row2Count do
-                row2:AddChild(gui.Panel{
-                    classes = {"recovery-pip"},
-                })
-            end
-
-            for i, child in ipairs(row1.children) do
-                child:SetClass("collapsed", i > row1Count)
-                child:SetClass("filled", i <= current)
-            end
-            for i, child in ipairs(row2.children) do
-                child:SetClass("collapsed", i > row2Count)
-                child:SetClass("filled", (i + 10) <= current)
-            end
-
-            row2:SetClass("collapsed", row2Count <= 0)
+            element:FireEventTree("updatePips", {maxRec = maxRec, current = current})
         end,
     }
 end
@@ -2966,13 +2986,9 @@ end
 --- Display the stamina controls
 --- @return Panel
 function TacPanel.Stamina()
-    return gui.Panel{
-        styles = TacPanelStyles.TacPanel,
-        classes = {"tacpanel"},
-        gui.Label{
-            classes = {"panel-title"},
-            text = "STAMINA",
-        },
+    return TacPanel.CollapsiblePanel{
+        title = "STAMINA",
+        altBg = false,
         gui.Panel{
             styles = TacPanelStyles.Stamina,
             classes = {"stamina-controls"},
@@ -3396,14 +3412,10 @@ end
 --- Display the statistics panel
 --- @return Panel
 function TacPanel.Statistics()
-    return gui.Panel{
-        styles = TacPanelStyles.TacPanel,
-        classes = {"tacpanel"},
+    return TacPanel.CollapsiblePanel{
+        title = "STATISTICS",
+        altBg = false,
         tmargin = -26,
-        gui.Label{
-            classes = {"panel-title"},
-            text = "STATISTICS",
-        },
         gui.Panel{
             classes = {"container"},
             width = "100%",
@@ -3426,8 +3438,14 @@ function TacPanel.HRGainRow(entry, token)
     return gui.Panel{
         classes = {"hr-row"},
         linger = gui.Tooltip(entry.details),
+        updateCompleted = function(element, consumed)
+            element:FireEventTree("setCompleted", consumed)
+        end,
         gui.Panel{
             classes = {"hr-chip"},
+            setCompleted = function(element, consumed)
+                element:SetClassImmediate("completed", consumed)
+            end,
             press = function(element)
                 local q = dmhub.initiativeQueue
                 if q == nil or q.hidden then
@@ -3498,10 +3516,6 @@ function TacPanel.GrowingHRRow(entry, creature)
         end,
         update = function(element, newEntry)
             element.data.entry = newEntry
-            element.children[1].text = tostring(newEntry.resources)
-            local text = StringInterpolateGoblinScript(newEntry.description, creature)
-            element.children[2].text = text
-            element.children[2].selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.grText, 50, #text)
         end,
         linger = function(element)
             if element.data.entry.tooltip ~= nil then
@@ -3511,10 +3525,18 @@ function TacPanel.GrowingHRRow(entry, creature)
         gui.Label{
             classes = {"label", "gr-value"},
             text = tostring(entry.resources),
+            update = function(element, newEntry)
+                element.text = tostring(newEntry.resources)
+            end,
         },
         gui.Label{
             classes = {"label", "gr-text"},
             text = StringInterpolateGoblinScript(entry.description, creature),
+            update = function(element, newEntry)
+                local text = StringInterpolateGoblinScript(newEntry.description, creature)
+                element.text = text
+                element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.grText, 50, #text)
+            end,
         },
     }
 end
@@ -3547,7 +3569,7 @@ function TacPanel.GrowingHRTable()
             local characterResources = creature:GetProgressionResource()
 
             local rows = element.data.rows
-            local children = { element.children[1] }
+            local rowChildren = {}
             local index = 1
 
             for _, entry in ipairs(growingResources.progression) do
@@ -3560,16 +3582,16 @@ function TacPanel.GrowingHRTable()
                     row:SetClass("available", entry.resources <= characterResources)
                     row:SetClass("collapsed", element.data.collapsed)
 
-                    children[#children + 1] = row
+                    rowChildren[#rowChildren + 1] = row
                 end
             end
 
             for i = index, #rows do
-                rows[i]:SetClass("collapsed", true)
+                if rows[i] then rows[i]:SetClass("collapsed", true) end
             end
 
             element.data.rows = rows
-            element.children = children
+            element:FireEventTree("setContent", rowChildren)
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -3600,6 +3622,17 @@ function TacPanel.GrowingHRTable()
                 end,
             },
         },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
+            setCollapse = function(element, collapsed)
+                element:SetClass("collapsed", collapsed)
+            end,
+        },
     }
 end
 
@@ -3611,10 +3644,12 @@ function TacPanel.CollapsiblePanel(args)
     local extraStyles = args.styles or {}
     local extraClasses = args.classes or {}
     local extraData = args.data or {}
+    local altBg = args.altBg ~= false
     args.title = nil
     args.styles = nil
     args.classes = nil
     args.data = nil
+    args.altBg = nil
 
     -- Build merged data with collapsed default
     local data = { collapsed = false }
@@ -3623,7 +3658,8 @@ function TacPanel.CollapsiblePanel(args)
     end
 
     -- Build merged classes
-    local classes = {"tacpanel", "alt-bg"}
+    local classes = {"tacpanel"}
+    if altBg then classes[#classes+1] = "alt-bg" end
     for _,c in ipairs(extraClasses) do
         classes[#classes+1] = c
     end
@@ -3657,41 +3693,43 @@ function TacPanel.CollapsiblePanel(args)
         },
     }
 
-    -- Collect content children from array entries
-    local contentChildren = {}
+    -- Collect content children from array entries into a single wrapper
+    local contentPanelArgs = {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        setCollapse = function(element, collapsed)
+            element:SetClass("collapsed", collapsed)
+        end,
+    }
     for i,child in ipairs(args) do
-        contentChildren[#contentChildren+1] = child
+        contentPanelArgs[#contentPanelArgs+1] = child
         args[i] = nil
     end
+    local contentPanel = gui.Panel(contentPanelArgs)
 
-    -- Build the outer panel args
+    -- Build the outer panel args: titleBar (child[1]), contentPanel (child[2])
     local panelArgs = {
         styles = TacPanel.MergeStyles(allStyles),
         classes = classes,
         data = data,
         titleBar,
+        contentPanel,
     }
-
-    -- Add content children
-    for _,child in ipairs(contentChildren) do
-        panelArgs[#panelArgs+1] = child
-    end
-
-    -- Default setCollapse: hide/show children 2+
-    if args.setCollapse == nil then
-        panelArgs.setCollapse = function(element)
-            for i = 2, #element.children do
-                element.children[i]:SetClass("collapsed", element.data.collapsed)
-            end
-        end
-    end
 
     -- Pass through all remaining args properties
     for k,v in pairs(args) do
         panelArgs[k] = v
     end
 
-    return gui.Panel(panelArgs)
+    local panel = gui.Panel(panelArgs)
+
+    -- Sync initial collapsed state so arrow, content wrapper, etc. all match
+    if data.collapsed then
+        panel:FireEventTree("setCollapse", true)
+    end
+
+    return panel
 end
 
 --- Display the Routines panel
@@ -3721,7 +3759,7 @@ function TacPanel.Routines()
             element:SetClass("collapsed", false)
 
             if element.data.collapsed then
-                element.children[2].children = {}
+                element:FireEventTree("setContent", {})
                 return
             end
 
@@ -3751,49 +3789,54 @@ function TacPanel.Routines()
 
             for _,routine in ipairs(routines) do
                 local selected = (routinesSelected[routine.guid] ~= nil)
-                local panel = element.data.routinePanels[routine.guid] or gui.Panel{
-                    data = { selected = false },
+                local panel = element.data.routinePanels[routine.guid]
+
+                if panel == nil then
+                local routineLabel = gui.Label{
+                    classes = {"rt-chip"},
+                    text = routine.name,
+                    popupPositioning = "panel",
+                    hover = function(el)
+                        el.tooltip = gui.TooltipFrame(routine:Render{}, {
+                            halign = "left",
+                            valign = "top",
+                        })
+                    end,
+                    press = function(el)
+                        token:ModifyProperties{
+                            description = tr("Select Routine"),
+                            execute = function()
+                                local sel = token.properties:get_or_add("routinesSelected", {})
+                                if sel[routine.guid] then
+                                    sel[routine.guid] = nil
+                                else
+                                    sel[routine.guid] = ServerTimestamp()
+                                end
+                                token.properties.routinesSelected = sel
+                            end,
+                        }
+                    end,
+                    selectionChanged = function(el, sel)
+                        el:SetClass("selected", sel)
+                    end,
+                }
+                panel = gui.Panel{
+                    data = { selected = false, label = routineLabel },
                     classes = {"rt-chip"},
                     flow = "horizontal",
 
-                    gui.Label{
-                        classes = {"rt-chip"},
-                        text = routine.name,
-                        popupPositioning = "panel",
-                        hover = function(el)
-                            el.tooltip = gui.TooltipFrame(routine:Render{}, {
-                                halign = "left",
-                                valign = "top",
-                            })
-                        end,
-                        press = function(el)
-                            token:ModifyProperties{
-                                description = tr("Select Routine"),
-                                execute = function()
-                                    local sel = token.properties:get_or_add("routinesSelected", {})
-                                    if sel[routine.guid] then
-                                        sel[routine.guid] = nil
-                                    else
-                                        sel[routine.guid] = ServerTimestamp()
-                                    end
-                                    token.properties.routinesSelected = sel
-                                end,
-                            }
-                        end,
-                    },
+                    routineLabel,
 
                     selectionChanged = function(el, sel)
                         el:SetClass("selected", sel)
-                        local labelChild = el.children[1]
-                        labelChild:SetClass("selected", sel)
 
                         if not sel then
-                            el.children = {labelChild}
+                            el.children = {el.data.label}
                             return
                         end
 
                         el.children = {
-                            labelChild,
+                            el.data.label,
                             gui.Panel{
                                 valign = "center",
                                 halign = "right",
@@ -3883,6 +3926,7 @@ function TacPanel.Routines()
                         }
                     end,
                 }
+                end
 
                 if selected ~= panel.data.selected then
                     panel.data.selected = selected
@@ -3894,7 +3938,7 @@ function TacPanel.Routines()
             end
 
             element.data.routinePanels = newPanels
-            element.children[2].children = children
+            element:FireEventTree("setContent", children)
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -3906,6 +3950,9 @@ function TacPanel.Routines()
         gui.Panel{
             classes = {"rt-container"},
             wrap = true,
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
         },
     }
 end
@@ -3975,7 +4022,7 @@ function TacPanel.HeroicResources()
 
                         local panel = panels[entry.guid] or TacPanel.HRGainRow(entry, token)
 
-                        panel.children[1]:SetClassImmediate("completed", consumed)
+                        panel:FireEvent("updateCompleted", consumed)
 
                         newPanels[entry.guid] = panel
                         children[#children + 1] = panel
@@ -4064,6 +4111,8 @@ function TacPanel.SkillLanguages()
     }
 end
 
+--- Display the Features panel
+--- @return Panel
 function TacPanel.Features()
     return TacPanel.CollapsiblePanel{
         styles = {TacPanelStyles.Notes},
@@ -4131,7 +4180,7 @@ function TacPanel.Features()
             end
 
             element:SetClass("collapsed", false)
-            element.children[2].children = labels
+            element:FireEventTree("setContent", labels)
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -4145,11 +4194,14 @@ function TacPanel.Features()
             width = "100%",
             height = "auto",
             flow = "vertical",
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
         },
     }
 end
 
---- Display the Notes panel (collapsible)
+--- Display the Notes panel
 --- @return Panel
 function TacPanel.Notes()
     return TacPanel.CollapsiblePanel{
@@ -4187,7 +4239,7 @@ function TacPanel.Notes()
 
             element:SetClass("collapsed", false)
 
-            -- Rebuild note labels into the content container (child[2])
+            -- Rebuild note labels into the content container
             local noteLabels = {}
             for _, note in ipairs(notes) do
                 if note.text ~= nil and note.text ~= "" then
@@ -4202,7 +4254,7 @@ function TacPanel.Notes()
                     }
                 end
             end
-            element.children[2].children = noteLabels
+            element:FireEventTree("setContent", noteLabels)
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -4211,17 +4263,19 @@ function TacPanel.Notes()
             element:FireEvent("refreshCharacter", token)
         end,
 
-        -- Content container (child[2]), collapsed/expanded by default handler
         gui.Panel{
             classes = {"container"},
             width = "100%",
             height = "auto",
             flow = "vertical",
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
         },
     }
 end
 
---- Multi-token selection panel (styled)
+--- Multi-token selection panel
 --- @return Panel
 function TacPanel.MultiEdit()
     local m_tokens = {}
@@ -5167,6 +5221,8 @@ function TacPanel.AuraChip(auraInstance, token)
     }
 end
 
+--- Display the Auras we're emitting panel
+--- @return Panel
 function TacPanel.AurasEmitting()
     return TacPanel.CollapsiblePanel{
         styles = {TacPanelStyles.Conditions},
@@ -5320,7 +5376,7 @@ function TacPanel.AurasEmitting()
             end
 
             element:SetClass("collapsed", false)
-            element.children[2].children = chips
+            element:FireEventTree("setContent", chips)
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -5331,6 +5387,9 @@ function TacPanel.AurasEmitting()
         gui.Panel{
             classes = {"panel", "cond-chips"},
             wrap = true,
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
         },
     }
 end
@@ -5657,7 +5716,7 @@ function TacPanel.PersistentAbilities()
                     text = "Too many persistent abilities. You must end some.",
                 }
             end
-            element.children[2].children = children
+            element:FireEventTree("setContent", children)
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -5669,6 +5728,9 @@ function TacPanel.PersistentAbilities()
         gui.Panel{
             classes = {"panel", "cond-chips"},
             wrap = true,
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
         },
     }
 end
@@ -5683,7 +5745,7 @@ function TacPanel.Conditions()
         refreshCharacter = function(element, token)
             element.data.token = token
             if token == nil or not token.valid then
-                element.children[2].children = {}
+                element:FireEventTree("setContent", {})
                 return
             end
 
@@ -5744,7 +5806,15 @@ function TacPanel.Conditions()
                 children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
             end
 
-            element.children[2].children = children
+            -- "No conditions" placeholder when nothing to show
+            if #children == 1 then
+                children[#children + 1] = gui.Label{
+                    classes = {"label", "cond-empty"},
+                    text = "No conditions",
+                }
+            end
+
+            element:FireEventTree("setContent", children)
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -5755,6 +5825,9 @@ function TacPanel.Conditions()
         gui.Panel{
             classes = {"panel", "cond-chips"},
             wrap = true,
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
         },
         gui.Input{
             classes = {"input", "cond-custom-input"},
@@ -5786,13 +5859,37 @@ function TacPanel.Conditions()
     }
 end
 
---- Display the combat panel
+--- Display the testing panel
 --- @return Panel
-function TacPanel.DrawSteel()
+function TacPanel.Testing()
+    local testInfo = [[
+*Thank you for helping us test the new tactical panel!*
+
+This panel should do everything the previous panel did.
+
+**What Needs Testing**
+* Pretty much the whole thing for all classes & levels.
+* Including when you have multiple tokens selected.
+
+If you find an issue, plese let us know via a bug report in the DMHub Discord.mod
+
+**Known Issues**
+* Lots of icons are placeholders, especially griffons, but also the light button and the icon in the temp stamina box.
+]]
     return TacPanel.CollapsiblePanel{
-        styles = {TacPanelStyles.DrawSteel},
-        title = "DRAW STEEL!",
-        data = { token = nil },
+        title = "TESTING INFO",
+        altBg = true,
+        data = { collapsed = false },
+        gui.Label{
+            width = "100%",
+            height = "auto",
+            fontFace = "Berling",
+            fontSize = 14,
+            textWrap = true,
+            markdown = true,
+            color = CREAM,
+            text = testInfo,
+        },
     }
 end
 
@@ -7501,7 +7598,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
         } or nil,
 
         newTacPanel and TacPanel.Statistics() or nil,
-        newTacPanel and TacPanel.DrawSteel() or nil,
+        newTacPanel and TacPanel.Testing() or nil,
         newTacPanel and TacPanel.Routines() or nil,
         newTacPanel and TacPanel.AurasEmitting() or nil,
         newTacPanel and TacPanel.PersistentAbilities() or nil,
@@ -8288,12 +8385,6 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 		oldTacPanel and CharacterPanel.LanguagesPanel(m_token) or nil,
         oldTacPanel and CharacterPanel.AbilitiesPanel(m_token) or nil,
         oldTacPanel and CharacterPanel.NotesPanel(m_token) or nil,
-        gui.Panel{
-            styles = TacPanelStyles.TacPanel,
-            classes = {"tacpanel", "alt-bg"},
-            height = "40",
-            width = "100%",
-        }
     }
 
     return resultPanel
@@ -10308,7 +10399,6 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
 			},
 		}),
 	} or nil
-    -- local summaryPanel2 = _tacPanelSummaryPanel()
 
 	characterDisplaySidebar = gui.Panel{
 		id = 'sidebar',
@@ -10368,8 +10458,6 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
 		summaryPanel,
         newTacPanel and TacPanel.Summary() or nil,
         newTacPanel and TacPanel.Stamina() or nil,
-        -- summaryPanel2,
-        -- _tacPanelHealthPanel(),
 	}
 
 	return characterDisplaySidebar

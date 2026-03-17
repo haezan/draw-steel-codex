@@ -1546,6 +1546,10 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 									canTarget = false
 								end
 
+								if currentSymbols ~= nil and currentSymbols.allowedtargets ~= nil and not currentSymbols.allowedtargets[targetToken.charid] then
+									canTarget = false
+								end
+
 								if canTarget and not spell:TargetPassesFilter(token, targetToken, currentSymbols) then
 									canTarget = false
 								end
@@ -1553,6 +1557,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 								if canTarget then
 									--give us an extra square of range to account for diagonals.
 									local valid = range+dmhub.unitsPerSquare > targetToken:Distance(casterLocOverride or token)
+									    or spell:IsTargetInRangeOfCastingOrigins(token, targetToken, range)
 
                                     if targetToken.sheet.data.targetInfo ~= nil then
                                         targetToken.sheet.data.targetInfo = nil

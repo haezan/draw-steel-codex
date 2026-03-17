@@ -1350,19 +1350,6 @@ local function AbilityHeading(args)
                             end
                         end
 
-                        -- Resource affordability filter.
-                        if passes then
-                            local costType = improvMod:try_get("resourceCostType", "none")
-                            if costType ~= "none" then
-                                local costAmt = tonumber(ExecuteGoblinScript(improvMod:try_get("resourceCostAmount", "1"), g_token.properties:LookupSymbol{}, 1)) or 1
-                                local resourceId = cond(costType == "epic", CharacterResource.epicResourceId, CharacterResource.heroicResourceId)
-                                local available = g_resources[resourceId] or 0
-                                if available < costAmt then
-                                    passes = false
-                                end
-                            end
-                        end
-
                         if passes then
                             m_activeImprovements[#m_activeImprovements + 1] = {
                                 mod = improvMod,
@@ -2070,22 +2057,29 @@ local m_castingTriggersOwnerPanel = nil
 
 
 --- Applies checked improvement params, re-runs CalculateSpellTargeting, then restores.
+--- Rebuilds g_currentCostProposal from scratch so improvement resource costs are included.
 --- Each param's registered apply() temporarily patches the ability and returns a restore fn.
 local ApplyImprovements = function()
     if g_token == nil or g_currentAbility == nil then return end
-    local restores = {}
+
+    -- Rebuild the base cost proposal, then append costs for each checked improvement.
+    g_currentCostProposal = g_currentAbility:GetCost(g_token, g_currentSymbols)
+
+    -- Reset all improvement bonus fields so each call starts fresh.
+    g_currentSymbols.abilityRangeBonus = nil
+    g_currentSymbols.abilityRadiusBonus = nil
+    g_currentSymbols.numtargetsoverride = nil
+    g_currentSymbols._abilityTargetCountBonus = nil
+
     for _, entry in ipairs(m_activeImprovements) do
         if entry.checked then
             local looksym = g_token.properties:LookupSymbol{ability = g_currentAbility}
             for _, param in ipairs(entry.mod:try_get("params", {})) do
                 local info = CharacterModifier.ImprovementParamsById[param.id]
-                if info ~= nil and info.apply ~= nil and param.value ~= nil and param.value ~= "" then
+                if info ~= nil and info.accumulate ~= nil and param.value ~= nil and param.value ~= "" then
                     local value = ExecuteGoblinScript(param.value, looksym, 0)
                     if value ~= 0 then
-                        local restore = info.apply(g_currentAbility, value, g_token.properties, g_currentSymbols)
-                        if restore ~= nil then
-                            restores[#restores+1] = restore
-                        end
+                        info.accumulate(g_currentAbility, value, g_token.properties, g_currentSymbols)
                     end
                 end
             end
@@ -2094,8 +2088,13 @@ local ApplyImprovements = function()
 
     CalculateSpellTargeting()
 
-    for _, restore in ipairs(restores) do
-        restore()
+    -- Re-fire maphover so point-placed AoE shapes (cube, cone, line, etc.) are
+    -- redrawn immediately using the bonus values now in g_currentSymbols.
+    if g_abilityController ~= nil then
+        local data = g_abilityController.data
+        if data.lastHoverLoc ~= nil then
+            g_abilityController:FireEvent("maphover", data.lastHoverLoc, data.lastHoverPoint)
+        end
     end
 end
 
@@ -4478,25 +4477,6 @@ CreateAbilityController = function()
                     section = "main",
                 }
 
-                -- Deduct resource costs for any checked improvements.
-                for _, entry in ipairs(m_activeImprovements) do
-                    if entry.checked and entry.mod.resourceCostType ~= "none" then
-                        local costAmt = tonumber(ExecuteGoblinScript(entry.mod.resourceCostAmount, g_token.properties:LookupSymbol(g_currentSymbols), 1)) or 1
-                        local costType = entry.mod.resourceCostType
-                        g_token:ModifyProperties{
-                            description = "Improvement Cost: " .. entry.mod.name,
-                            undoable = false,
-                            execute = function()
-                                if costType == "cost" then
-                                    g_token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", costAmt, "Improvement: " .. entry.mod.name)
-                                elseif costType == "epic" then
-                                    g_token.properties:ConsumeResource(CharacterResource.epicResourceId, "unbounded", costAmt, "Improvement: " .. entry.mod.name)
-                                end
-                            end,
-                        }
-                    end
-                end
-
                 local clearAbility = g_currentAbility
                 g_currentAbility:Cast(g_token, targets, {
                     targetArea = g_pointTargeting.shape,
@@ -4618,6 +4598,10 @@ local function CalculateSpellTargetFocusing(symbols)
                     canTarget = false
                 end
 
+                if symbols ~= nil and symbols.allowedtargets ~= nil and not symbols.allowedtargets[targetToken.charid] then
+                    canTarget = false
+                end
+
                 if locs ~= nil and canTarget then
                     canTarget = false
                     local locsOccupying = targetToken.locsOccupying
@@ -4656,7 +4640,9 @@ local function CalculateSpellTargetFocusing(symbols)
                 if canTarget then
                     --give us an extra square of range to account for diagonals.
                     if failReason == nil and spell.targetType ~= "areatemplate" and (not g_token.properties.minion) and not (range + dmhub.unitsPerSquare > targetToken:Distance(casterLocOverride or g_token)) then
-                        failReason = "Out of range"
+                        if not spell:IsTargetInRangeOfCastingOrigins(g_token, targetToken, range) then
+                            failReason = "Out of range"
+                        end
                     end
                     local valid = failReason == nil
 
@@ -4772,10 +4758,38 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 section = "main",
             }
 
+            -- Build improvement costs to pass into Cast so they are consumed
+            -- at the same time as the ability's own cost (inside AbilityPayCost).
+            local improvCosts = {}
+            do
+                local resourceTable = dmhub.GetTable("characterResources")
+                for _, entry in ipairs(m_activeImprovements) do
+                    if entry.checked then
+                        local costType = entry.mod:try_get("resourceCostType", "none")
+                        if costType ~= "none" then
+                            local costAmt = tonumber(ExecuteGoblinScript(entry.mod:try_get("resourceCostAmount", "1"), g_token.properties:LookupSymbol{}, 1)) or 1
+                            if costAmt > 0 then
+                                local resourceId = cond(costType == "epic", CharacterResource.epicResourceId, g_token.properties.resourceid)
+                                local resourceInfo = resourceTable[resourceId]
+                                if resourceInfo ~= nil then
+                                    improvCosts[#improvCosts+1] = {
+                                        resourceId = resourceId,
+                                        costAmt = costAmt,
+                                        refreshType = resourceInfo.usageLimit,
+                                        name = entry.mod:try_get("name", "Improvement"),
+                                    }
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
             local clearAbility = g_currentAbility
             g_currentAbility:Cast(g_token, targets, {
                 attachedTriggers = attachedTriggers,
                 costOverride = g_currentCostProposal,
+                improvementCosts = improvCosts,
                 symbols = g_currentSymbols,
                 markLineOfSight = m_targetLineOfSightRays,
                 OnFinishCastHandlers = {

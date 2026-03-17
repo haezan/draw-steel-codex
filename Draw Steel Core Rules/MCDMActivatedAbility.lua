@@ -1576,13 +1576,19 @@ function ActivatedAbility:Render(options, params)
                                     color = "#777777",
                                 },
                                 gui.Style{
-                                    classes = {"hover"},
+                                    classes = {"improvementLabel", "unaffordable", "selected"},
+                                    color = "#ff6666",
+                                },
+                                gui.Style{
+                                    selectors = {"improvementLabel", "parent:hover"},
+                                    brightness = 1.5,
+                                },
+                                gui.Style{
+                                    classes = {"improvementPill", "hover"},
                                     brightness = 1.5,
                                 },
                             },
                             classes = {"improvementPill"},
-                            hover = function(el) el:SetClassTree("hover", true) end,
-                            dehover = function(el) el:SetClassTree("hover", false) end,
                             press = function(el)
                                 m_value = not m_value
                                 capturedEntry.checked = m_value
@@ -1605,6 +1611,27 @@ function ActivatedAbility:Render(options, params)
                                 classes = {"improvementLabel"},
                                 text = capturedEntry.mod:try_get("name", "Ability Improvement"),
                             },
+                            (function()
+                                local costType = capturedEntry.mod:try_get("resourceCostType", "none")
+                                if costType == "none" then return nil end
+                                local casterProps = options.caster.properties
+                                local costAmt = ExecuteGoblinScript(capturedEntry.mod:try_get("resourceCostAmount", "1"), casterProps:LookupSymbol{}, 1)
+                                costAmt = math.floor(costAmt + 0.5)
+                                local available, resourceName
+                                if costType == "epic" then
+                                    available = casterProps:GetEpicResources()
+                                    resourceName = casterProps:GetEpicResourceName()
+                                else
+                                    available = casterProps:GetHeroicOrMaliceResources()
+                                    resourceName = casterProps:GetHeroicResourceName()
+                                end
+                                available = math.floor(available or 0)
+                                return gui.Label{
+                                    classes = {"improvementLabel", cond(available < costAmt, "unaffordable", nil)},
+                                    lmargin = 4,
+                                    text = string.format("(%d / %d %s)", costAmt, available, resourceName),
+                                }
+                            end)(),
                         }
                         pillPanel:SetClassTree("selected", m_value)
                         children[#children+1] = pillPanel
@@ -2706,6 +2733,10 @@ function ActivatedAbility:GetRange(casterCreature, castingSymbols, selfRange)
         result = result + self.rangeBonusFromReach
     end
 
+    if castingSymbols ~= nil and castingSymbols.abilityRangeBonus ~= nil then
+        result = result + castingSymbols.abilityRangeBonus
+    end
+
     return result
 end
 
@@ -2732,6 +2763,15 @@ function ActivatedAbility:GetLineDistance(castingCreature, castingSymbols)
         end
     end
 
+    return result
+end
+
+local g_baseGetRadius = ActivatedAbility.GetRadius
+function ActivatedAbility:GetRadius(casterCreature, castingSymbols)
+    local result = g_baseGetRadius(self, casterCreature, castingSymbols)
+    if castingSymbols ~= nil and castingSymbols.abilityRadiusBonus ~= nil then
+        result = result + castingSymbols.abilityRadiusBonus
+    end
     return result
 end
 

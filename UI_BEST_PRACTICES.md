@@ -296,6 +296,10 @@ gui.Panel{
 -- The parent can fire: element:FireEventTree("setTitle", "NEW TITLE")
 ```
 
+Never use the `children` array to imagine you can get to a specific control.
+This code will not be robust, and will break with future edits. **Always** use
+custom events via `FireEventTree` to communicate with children.
+
 ### Data Tables
 
 Store panel state in the `data` table, not in closure upvalues:
