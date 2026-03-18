@@ -1469,6 +1469,12 @@ TacPanelStyles.AddConditionMenu = {
         selectors = {"label", "menu-suboption", "press"},
         brightness = 1.4,
     },
+    {
+        selectors = {"label", "menu-suboption", "disabled"},
+        color = DIM,
+        borderColor = DIM,
+        bgcolor = DIM .. "0F",
+    },
     {   -- Search input
         selectors = {"input", "menu-search"},
         width = "90%",
@@ -5433,8 +5439,6 @@ function TacPanel.AurasEmitting()
     }
 end
 
---- Show a styled popup to add conditions or status effects
---- @param args table {tokens, button}
 function TacPanel.AddConditionMenu(args)
     local m_tokens = args.tokens
     local m_button = args.button
@@ -5526,111 +5530,128 @@ function TacPanel.AddConditionMenu(args)
 
     table.sort(options, function(a, b) return a.text < b.text end)
 
-    local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
-    local statusEffectOptions = {}
-    for k, effect in unhidden_pairs(ongoingEffectsTable) do
-        if effect.statusEffect then
-            statusEffectOptions[#statusEffectOptions + 1] = gui.Label{
-                classes = {"menu-option"},
-                text = effect.name,
-                searchText = function(element, searchText)
-                    element:SetClass("collapsed", not string.starts_with(string.lower(element.text), searchText))
-                end,
-                linger = function(element)
-                    gui.Tooltip(string.format("%s: %s", effect.name, effect.description))(element)
-                end,
-                press = function(element)
-                    for _, tok in ipairs(m_tokens) do
-                        tok:ModifyProperties{
-                            description = "Apply Status Effect",
-                            combine = true,
-                            execute = function()
-                                if tok == nil or not tok.valid then return end
-                                tok.properties:ApplyOngoingEffect(k)
-                            end,
-                        }
-                    end
-                    m_button.popup = nil
-                end,
-            }
-        end
-    end
+    local statusContent = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
 
-    table.sort(statusEffectOptions, function(a, b) return a.text < b.text end)
+    local statusLoadButton = gui.Label{
+        classes = {"menu-suboption"},
+        text = "Load",
+        halign = "right",
+        hmargin = 8,
+        floating = true,
+        swallowPress = true,
+        press = function(element)
+            element:SetClassImmediate("disabled")
+            element.interactable = false
+            local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+            local statusEffectOptions = {}
+            for k, effect in unhidden_pairs(ongoingEffectsTable) do
+                if effect.statusEffect then
+                    statusEffectOptions[#statusEffectOptions + 1] = gui.Label{
+                        classes = {"menu-option"},
+                        text = effect.name,
+                        searchText = function(el, searchText)
+                            el:SetClass("collapsed", not string.starts_with(string.lower(el.text), searchText))
+                        end,
+                        linger = function(el)
+                            gui.Tooltip(string.format("%s: %s", effect.name, effect.description))(el)
+                        end,
+                        press = function(el)
+                            for _, tok in ipairs(m_tokens) do
+                                tok:ModifyProperties{
+                                    description = "Apply Status Effect",
+                                    combine = true,
+                                    execute = function()
+                                        if tok == nil or not tok.valid then return end
+                                        tok.properties:ApplyOngoingEffect(k)
+                                    end,
+                                }
+                            end
+                            m_button.popup = nil
+                        end,
+                    }
+                end
+            end
+            table.sort(statusEffectOptions, function(a, b) return a.text < b.text end)
+            statusContent.children = statusEffectOptions
+            element.selfStyle.hidden = true
+        end,
+    }
 
     m_button.popup = gui.Panel{
-            styles = {TacPanelStyles.AddConditionMenu},
-            floating = true,
-            vscroll = true,
+        styles = {TacPanelStyles.AddConditionMenu},
+        floating = true,
+        vscroll = true,
+        hideObjectsOutOfScroll = true,
+        flow = "vertical",
+        width = 300,
+        height = 800,
+        bgimage = "panels/square.png",
+        bgcolor = RICH_BLACK,
+        border = 1,
+        borderColor = GOLD_BORDER,
+        cornerRadius = 6,
+        pad = 6,
+
+        gui.Label{
+            classes = {"menu-heading"},
+            text = "ADD CONDITION",
+            halign = "center",
+            tmargin = 2,
+        },
+
+        gui.Panel{
+            classes = {"panel", "menu-divider"},
+        },
+
+        gui.Input{
+            classes = {"input", "menu-search"},
+            placeholderText = "Search...",
+            hasFocus = true,
+            data = { searchedOption = nil },
+            edit = function(element)
+                element.parent:FireEventTree("searchText", string.lower(element.text))
+                element.data.searchedOption = nil
+                local found = element.text == ""
+                for _, option in ipairs(options) do
+                    if found == false and option:HasClass("collapsed") == false then
+                        found = true
+                        option:SetClass("searched", true)
+                        element.data.searchedOption = option
+                    else
+                        option:SetClass("searched", false)
+                    end
+                end
+            end,
+            submit = function(element)
+                if element.data.searchedOption ~= nil then
+                    element.data.searchedOption:FireEvent("press")
+                end
+            end,
+        },
+
+        gui.Label{
+            classes = {"menu-heading"},
+            text = "CONDITIONS",
+        },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
             flow = "vertical",
-            width = 300,
-            height = 800,
-            bgimage = "panels/square.png",
-            bgcolor = RICH_BLACK,
-            border = 1,
-            borderColor = GOLD_BORDER,
-            cornerRadius = 6,
-            pad = 6,
+            children = options,
+        },
 
-            gui.Label{
-                classes = {"menu-heading"},
-                text = "ADD CONDITION",
-                halign = "center",
-                tmargin = 2,
-            },
-
-            gui.Panel{
-                classes = {"panel", "menu-divider"},
-            },
-
-            gui.Input{
-                classes = {"input", "menu-search"},
-                placeholderText = "Search...",
-                hasFocus = true,
-                data = { searchedOption = nil },
-                edit = function(element)
-                    element.parent:FireEventTree("searchText", string.lower(element.text))
-                    element.data.searchedOption = nil
-                    local found = element.text == ""
-                    for _, option in ipairs(options) do
-                        if found == false and option:HasClass("collapsed") == false then
-                            found = true
-                            option:SetClass("searched", true)
-                            element.data.searchedOption = option
-                        else
-                            option:SetClass("searched", false)
-                        end
-                    end
-                end,
-                submit = function(element)
-                    if element.data.searchedOption ~= nil then
-                        element.data.searchedOption:FireEvent("press")
-                    end
-                end,
-            },
-
-            gui.Label{
-                classes = {"menu-heading"},
-                text = "CONDITIONS",
-            },
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "vertical",
-                children = options,
-            },
-
-            gui.Label{
-                classes = {"menu-heading"},
-                text = "STATUS EFFECTS",
-            },
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "vertical",
-                children = statusEffectOptions,
-            },
-        }
+        gui.Label{
+            classes = {"menu-heading"},
+            text = "STATUS EFFECTS",
+            flow = "horizontal",
+            statusLoadButton,
+        },
+        statusContent,
+    }
 end
 
 --- Display the Persistent Abilities panel
@@ -5912,8 +5933,13 @@ This panel should do everything the previous panel did.
 
 If you find an issue, plese let us know via a bug report in the DMHub Discord.mod
 
+**Recent Fixes**
+* Clicking the "Set Caster" button again while still setting caster should not produce a LUA errror.
+* Resolved perf issue in loading condition list by making Status Effects load on demand (those will still take .5-1 second when you click Load).
+
 **Known Issues**
 * Lots of icons are placeholders, especially griffons, but also the light button and the icon in the temp stamina box.
+* The Temp Stam placeholder turns into a "p" when you click into the field.
 ]]
     return TacPanel.CollapsiblePanel{
         title = "TESTING INFO",
