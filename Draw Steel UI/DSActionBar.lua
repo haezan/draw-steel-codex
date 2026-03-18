@@ -4,6 +4,8 @@ local g_customActionBar
 
 local g_customActionBarFunction = nil
 
+local g_profileMapHover = dmhub.ProfileMarker("MapHover")
+
 function RegisterCustomActionBar(fn)
     g_customActionBarFunction = fn
     if g_customActionBar ~= nil then
@@ -2030,6 +2032,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         return
 					end
 
+                    local _ = g_profileMapHover.Begin
+
                     local startingLoc = loc
 
                     if pointTargetShapeConfirmedLoc ~= nil and (loc == nil or loc.str ~= pointTargetShapeConfirmedLoc.str) then
@@ -2313,7 +2317,6 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         pointTargetLabel:Destroy()
                         pointTargetLabel = nil
                     end
-
 					if pointTargetShape ~= nil then
 						local video = "divinationline.webm"
 						local school = string.lower(spell:try_get("school", ""))
@@ -2416,6 +2419,8 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 						pointTargetLabelsAtPathEnd = nil
 						pointTargetShapePathEnd = nil
 					end
+                    local _ = g_profileMapHover.End
+
 				end,
 
 				mappress = function(element, loc, point)

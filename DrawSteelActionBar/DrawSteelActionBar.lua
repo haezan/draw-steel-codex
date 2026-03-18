@@ -4144,9 +4144,6 @@ CreateAbilityController = function()
                     end
                 end
             end
-
-
-
             if not pathfinding then
                 for k, tok in pairs(targetTokens) do
                     if (selfTarget or tok.charid ~= g_token.charid) and g_currentAbility:TargetPassesFilter(g_token, tok, g_currentSymbols) then
@@ -4171,7 +4168,8 @@ CreateAbilityController = function()
                 g_pointTargeting.label = nil
             end
 
-            if g_pointTargeting.shape ~= nil then
+            --draw the shape, disabled for 'all creatures on map' or 'all'
+            if g_pointTargeting.shape ~= nil and g_currentAbility.targetType ~= "map" and g_currentAbility.targetType ~= "all" then
                 local video = "divinationline.webm"
                 local school = string.lower(g_currentAbility:try_get("school", ""))
                 if school == "Evocation" then
@@ -4188,6 +4186,7 @@ CreateAbilityController = function()
 
                 if g_currentAbility ~= nil and loc ~= nil and g_pointTargeting.shape ~= nil then
                     local numTargets = g_currentAbility:GetNumTargets(g_token, g_currentSymbols)
+
                     local clickText = cond(numTargets == 1, "Click to Confirm", "")
                     local targetingType = g_currentAbility:try_get("targeting", "direct")
                     if g_currentAbility.targetType == "line" and #m_positionTargetsChosen == 0 then
