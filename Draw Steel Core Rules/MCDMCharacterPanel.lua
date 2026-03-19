@@ -1430,13 +1430,8 @@ TacPanelStyles.AddConditionMenu = {
     },
     {
         selectors = {"label", "menu-option", "hover"},
-        bgcolor = GOLD_BORDER,
         brightness = 1.2,
         transitionTime = 0.15,
-    },
-    {
-        selectors = {"label", "menu-option", "searched"},
-        bgcolor = GOLD_BORDER,
     },
     {
         selectors = {"label", "menu-option", "press"},
@@ -1468,6 +1463,12 @@ TacPanelStyles.AddConditionMenu = {
     {
         selectors = {"label", "menu-suboption", "press"},
         brightness = 1.4,
+    },
+    {
+        selectors = {"label", "menu-suboption", "disabled"},
+        color = DIM,
+        borderColor = DIM,
+        bgcolor = DIM .. "0F",
     },
     {   -- Search input
         selectors = {"input", "menu-search"},
@@ -2356,10 +2357,10 @@ function TacPanel.TempStamBox()
                     }
                 end
             end,
-            deselect = function(element)
+            defocus = function(element)
                 element.placeholderText = placeholder
             end,
-            click = function(element)
+            focus = function(element)
                 element.placeholderText = ""
             end,
             refreshCharacter = function(element, token)
@@ -5109,10 +5110,27 @@ function TacPanel.ConditionChip(condid, cond, token)
             gui.Panel{
                 classes = {"panel", "cond-setCaster", showSetCaster and "" or "collapsed"},
                 press = function(element)
+                    if element.data.invoking or gamehud.actionBarPanel.data.IsCastingSpell() then return end
+                    element.data.invoking = true
+                    element.thinkTime = 0.1
                     local ability = DeepCopy(MCDMUtils.GetStandardAbility("SetConditionCaster"))
                     ability.behaviors[1].condid = condid
-                    ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(
-                        token, ability, token, "prompt", {}, {})
+                    ability.OnFinishCast = function()
+                        element.data.invoking = false
+                        element.thinkTime = nil
+                    end
+                    ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(token, ability, token, "prompt", {}, {})
+                end,
+                think = function(element)
+                    if element.data.invoking and element.data.invokeReady then
+                        if not gamehud.actionBarPanel.data.IsCastingSpell() and not gamehud.rollDialog.data.IsShown() then
+                            element.data.invoking = false
+                            element.data.invokeReady = false
+                            element.thinkTime = nil
+                        end
+                    elseif element.data.invoking then
+                        element.data.invokeReady = true
+                    end
                 end,
                 linger = function(element)
                     gui.Tooltip("Set Caster")(element)
@@ -5121,7 +5139,7 @@ function TacPanel.ConditionChip(condid, cond, token)
                     bgimage = "icons/icon_app/icon_app_4.png",
                     width = 10, height = 10,
                     valign = "center", halign = "center",
-                    bgcolor = GOLD,
+                    bgcolor = TEMP_STAM,
                 },
             },
         },
@@ -5416,8 +5434,6 @@ function TacPanel.AurasEmitting()
     }
 end
 
---- Show a styled popup to add conditions or status effects
---- @param args table {tokens, button}
 function TacPanel.AddConditionMenu(args)
     local m_tokens = args.tokens
     local m_button = args.button
@@ -5480,7 +5496,8 @@ function TacPanel.AddConditionMenu(args)
                 text = effect.name,
                 flow = "horizontal",
                 searchText = function(element, searchText)
-                    element:SetClass("collapsed", not string.starts_with(string.lower(element.text), searchText))
+                    local match = string.starts_with(string.lower(element.text), searchText)
+                    element:SetClass("collapsed", not match)
                 end,
                 press = function(element, durationOverride, riderid)
                     if (not durationOverride) and effect.indefiniteDuration then
@@ -5510,110 +5527,142 @@ function TacPanel.AddConditionMenu(args)
     table.sort(options, function(a, b) return a.text < b.text end)
 
     local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
-    local statusEffectOptions = {}
+    local statusEffectData = {}
     for k, effect in unhidden_pairs(ongoingEffectsTable) do
         if effect.statusEffect then
-            statusEffectOptions[#statusEffectOptions + 1] = gui.Label{
-                classes = {"menu-option"},
-                text = effect.name,
-                searchText = function(element, searchText)
-                    element:SetClass("collapsed", not string.starts_with(string.lower(element.text), searchText))
-                end,
-                linger = function(element)
-                    gui.Tooltip(string.format("%s: %s", effect.name, effect.description))(element)
-                end,
-                press = function(element)
-                    for _, tok in ipairs(m_tokens) do
-                        tok:ModifyProperties{
-                            description = "Apply Status Effect",
-                            combine = true,
-                            execute = function()
-                                if tok == nil or not tok.valid then return end
-                                tok.properties:ApplyOngoingEffect(k)
-                            end,
-                        }
-                    end
-                    m_button.popup = nil
-                end,
-            }
+            statusEffectData[#statusEffectData + 1] = {key = k, effect = effect}
         end
     end
+    table.sort(statusEffectData, function(a, b) return a.effect.name < b.effect.name end)
 
-    table.sort(statusEffectOptions, function(a, b) return a.text < b.text end)
+    local function makeStatusLabel(k, effect)
+        return gui.Label{
+            classes = {"menu-option"},
+            text = effect.name,
+            searchText = function(el, searchText)
+                el:SetClass("collapsed", not string.starts_with(string.lower(el.text), searchText))
+            end,
+            linger = function(el)
+                gui.Tooltip(string.format("%s: %s", effect.name, effect.description))(el)
+            end,
+            press = function(el)
+                for _, tok in ipairs(m_tokens) do
+                    tok:ModifyProperties{
+                        description = "Apply Status Effect",
+                        combine = true,
+                        execute = function()
+                            if tok == nil or not tok.valid then return end
+                            tok.properties:ApplyOngoingEffect(k)
+                        end,
+                    }
+                end
+                m_button.popup = nil
+            end,
+        }
+    end
+
+    local initialCount = math.min(10, #statusEffectData)
+    local initialLabels = {}
+    for i = 1, initialCount do
+        local d = statusEffectData[i]
+        initialLabels[i] = makeStatusLabel(d.key, d.effect)
+    end
+
+    local statusContent = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+
+    if #statusEffectData > initialCount then
+        local moreButton = gui.Label{
+            classes = {"menu-suboption"},
+            text = "More...",
+            halign = "left",
+            tmargin = 4,
+            lmargin = 8,
+            swallowPress = true,
+            press = function(element)
+                local allLabels = {}
+                for i = 1, #statusEffectData do
+                    local d = statusEffectData[i]
+                    allLabels[i] = makeStatusLabel(d.key, d.effect)
+                end
+                statusContent.children = allLabels
+                element:SetClass("collapsed", true)
+            end,
+        }
+        initialLabels[#initialLabels + 1] = moreButton
+    end
+
+    statusContent.children = initialLabels
 
     m_button.popup = gui.Panel{
-            styles = {TacPanelStyles.AddConditionMenu},
-            floating = true,
-            vscroll = true,
+        styles = {Styles.Default, TacPanelStyles.AddConditionMenu},
+        floating = true,
+        vscroll = true,
+        hideObjectsOutOfScroll = true,
+        flow = "vertical",
+        width = 300,
+        height = 800,
+        bgimage = "panels/square.png",
+        bgcolor = RICH_BLACK,
+        border = 1,
+        borderColor = GOLD_BORDER,
+        cornerRadius = 6,
+        pad = 6,
+
+        gui.Label{
+            classes = {"menu-heading"},
+            text = "ADD CONDITION",
+            halign = "center",
+            tmargin = 2,
+        },
+
+        gui.Panel{
+            classes = {"panel", "menu-divider"},
+        },
+
+        gui.Input{
+            classes = {"input", "menu-search"},
+            placeholderText = "Search...",
+            hasFocus = true,
+            data = { searchedOption = nil },
+            edit = function(element)
+                element.parent:FireEventTree("searchText", string.lower(element.text))
+                element.data.searchedOption = nil
+                local found = element.text == ""
+                for _, option in ipairs(options) do
+                    if found == false and option:HasClass("collapsed") == false then
+                        found = true
+                        element.data.searchedOption = option
+                    end
+                end
+            end,
+            submit = function(element)
+                if element.data.searchedOption ~= nil then
+                    element.data.searchedOption:FireEvent("press")
+                end
+            end,
+        },
+
+        gui.Label{
+            classes = {"menu-heading"},
+            text = "CONDITIONS",
+        },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
             flow = "vertical",
-            width = 300,
-            height = 800,
-            bgimage = "panels/square.png",
-            bgcolor = RICH_BLACK,
-            border = 1,
-            borderColor = GOLD_BORDER,
-            cornerRadius = 6,
-            pad = 6,
+            children = options,
+        },
 
-            gui.Label{
-                classes = {"menu-heading"},
-                text = "ADD CONDITION",
-                halign = "center",
-                tmargin = 2,
-            },
-
-            gui.Panel{
-                classes = {"panel", "menu-divider"},
-            },
-
-            gui.Input{
-                classes = {"input", "menu-search"},
-                placeholderText = "Search...",
-                hasFocus = true,
-                data = { searchedOption = nil },
-                edit = function(element)
-                    element.parent:FireEventTree("searchText", string.lower(element.text))
-                    element.data.searchedOption = nil
-                    local found = element.text == ""
-                    for _, option in ipairs(options) do
-                        if found == false and option:HasClass("collapsed") == false then
-                            found = true
-                            option:SetClass("searched", true)
-                            element.data.searchedOption = option
-                        else
-                            option:SetClass("searched", false)
-                        end
-                    end
-                end,
-                submit = function(element)
-                    if element.data.searchedOption ~= nil then
-                        element.data.searchedOption:FireEvent("press")
-                    end
-                end,
-            },
-
-            gui.Label{
-                classes = {"menu-heading"},
-                text = "CONDITIONS",
-            },
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "vertical",
-                children = options,
-            },
-
-            gui.Label{
-                classes = {"menu-heading"},
-                text = "STATUS EFFECTS",
-            },
-            gui.Panel{
-                width = "100%",
-                height = "auto",
-                flow = "vertical",
-                children = statusEffectOptions,
-            },
-        }
+        gui.Label{
+            classes = {"menu-heading"},
+            text = "STATUS EFFECTS",
+        },
+        statusContent,
+    }
 end
 
 --- Display the Persistent Abilities panel
@@ -5895,8 +5944,13 @@ This panel should do everything the previous panel did.
 
 If you find an issue, plese let us know via a bug report in the DMHub Discord.mod
 
+**Recent Fixes**
+* Clicking the "Set Caster" button again while still setting caster should not produce a LUA errror.
+* Resolved perf issue in loading condition list by making Status Effects load on demand (those will still take .5-1 second when you click Load).
+
 **Known Issues**
 * Lots of icons are placeholders, especially griffons, but also the light button and the icon in the temp stamina box.
+* The Temp Stam placeholder turns into a "p" when you click into the field.
 ]]
     return TacPanel.CollapsiblePanel{
         title = "TESTING INFO",
@@ -7318,9 +7372,27 @@ local function InflictedConditionsPanel(m_token)
                         text = "Set Caster",
                         halign = "left",
                         press = function(element)
+                            if element.data.invoking or gamehud.actionBarPanel.data.IsCastingSpell() then return end
+                            element.data.invoking = true
+                            element.thinkTime = 0.1
                             local ability = DeepCopy(MCDMUtils.GetStandardAbility("SetConditionCaster"))
                             ability.behaviors[1].condid = element.parent.data.condid
+                            ability.OnFinishCast = function()
+                                element.data.invoking = false
+                                element.thinkTime = nil
+                            end
                             ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(m_token, ability, m_token, "prompt", {}, {})
+                        end,
+                        think = function(element)
+                            if element.data.invoking and element.data.invokeReady then
+                                if not gamehud.actionBarPanel.data.IsCastingSpell() and not gamehud.rollDialog.data.IsShown() then
+                                    element.data.invoking = false
+                                    element.data.invokeReady = false
+                                    element.thinkTime = nil
+                                end
+                            elseif element.data.invoking then
+                                element.data.invokeReady = true
+                            end
                         end,
                         refresh = function(element)
                             if m_token == nil or not m_token.valid then

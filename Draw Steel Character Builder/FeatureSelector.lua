@@ -408,7 +408,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 local state = _getState()
                 local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
                 if blockSel then
-                    local tip = string.format("Select your %s before chooing features.", CharacterBuilder._ucFirst(selector))
+                    local tip = string.format("Select your %s before choosing features.", CharacterBuilder._ucFirst(selector))
                     gui.Tooltip{
                         halign = "center",
                         valign = "top",
