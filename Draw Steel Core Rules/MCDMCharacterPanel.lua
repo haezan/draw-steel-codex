@@ -358,7 +358,7 @@ TacPanelStyles.TokenBox = {
     },
     {
         selectors = {"panel", "icon", "victories"},
-        bgimage = PLACEHOLDER_TOKEN,
+        bgimage = "drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_VICTORY.png",
     },
     {
         selectors = {"panel", "icon", "heroic-resources"},
@@ -1952,13 +1952,10 @@ function TacPanel.HeroicResourcesBox()
             flow = "horizontal",
             gui.Panel{
                 classes = {"icon", "heroic-resources"},
-                refreshCharacter = function(element, token)
+                refreshToken = function(element, token)
                     local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
                     local icon = classInfo ~= nil and classInfo:try_get("heroicResourceIcon", PLACEHOLDER_TOKEN)
-                    element.bgimage = icon
-                end,
-                refreshToken = function(element, token)
-                    element:FireEvent("refreshCharacter", token)
+                    element.selfStyle.bgimage = icon
                 end,
             },
             gui.Label{
@@ -3991,7 +3988,7 @@ function TacPanel.HeroicResources()
                 element:SetClass("collapsed", true)
                 return
             end
-            element:SetClass("collapsed", token.properties.typeName ~= "character")
+            element:SetClass("collapsed", not token.properties:IsHero())
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
