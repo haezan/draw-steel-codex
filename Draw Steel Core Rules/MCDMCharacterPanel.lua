@@ -358,7 +358,7 @@ TacPanelStyles.TokenBox = {
     },
     {
         selectors = {"panel", "icon", "victories"},
-        bgimage = PLACEHOLDER_TOKEN,
+        bgimage = "drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_VICTORY.png",
     },
     {
         selectors = {"panel", "icon", "heroic-resources"},
@@ -1952,13 +1952,10 @@ function TacPanel.HeroicResourcesBox()
             flow = "horizontal",
             gui.Panel{
                 classes = {"icon", "heroic-resources"},
-                refreshCharacter = function(element, token)
+                refreshToken = function(element, token)
                     local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
                     local icon = classInfo ~= nil and classInfo:try_get("heroicResourceIcon", PLACEHOLDER_TOKEN)
-                    element.bgimage = icon
-                end,
-                refreshToken = function(element, token)
-                    element:FireEvent("refreshCharacter", token)
+                    element.selfStyle.bgimage = icon
                 end,
             },
             gui.Label{
@@ -3991,7 +3988,7 @@ function TacPanel.HeroicResources()
                 element:SetClass("collapsed", true)
                 return
             end
-            element:SetClass("collapsed", token.properties.typeName ~= "character")
+            element:SetClass("collapsed", not token.properties:IsHero())
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -5855,7 +5852,7 @@ function TacPanel.PersistentAbilities()
                                         local targetToken = dmhub.GetTokenById(targetid)
                                         if targetToken ~= nil then
                                             el.data.targetingMarkers[#el.data.targetingMarkers+1] =
-                                                dmhub.MarkLineOfSight(token, targetToken)
+                                                dmhub.MarkLineOfSight(token, targetToken, token.properties:GetPierceWalls())
                                         end
                                     end
                                 end
@@ -6075,12 +6072,13 @@ This panel should do everything the previous panel did.
 If you find an issue, plese let us know via a bug report in the DMHub Discord.mod
 
 **Recent Fixes**
+* Temp Stam placeholder no longer turns into a P when you click into the field.
+* Corrected intermittent placeholder icon for heroic resource icon.
 * Clicking the "Set Caster" button again while still setting caster should not produce a LUA errror.
 * Resolved perf issue in loading condition list by making Status Effects load on demand (those will still take .5-1 second when you click Load).
 
 **Known Issues**
-* Lots of icons are placeholders, especially griffons, but also the light button and the icon in the temp stamina box.
-* The Temp Stam placeholder turns into a "p" when you click into the field.
+* Some icons are placeholders, especially griffons, but also the light button and the icon in the temp stamina box.
 ]]
     return TacPanel.CollapsiblePanel{
         title = "TESTING INFO",
@@ -6629,7 +6627,7 @@ local function PersistencePanel(m_token)
                                             local targetToken = dmhub.GetTokenById(targetid)
                                             if targetToken ~= nil then
                                                 element.data.targetingMarkers = element.data.targetingMarkers or {}
-                                                element.data.targetingMarkers[#element.data.targetingMarkers+1] = dmhub.MarkLineOfSight(m_token, targetToken)
+                                                element.data.targetingMarkers[#element.data.targetingMarkers+1] = dmhub.MarkLineOfSight(m_token, targetToken, m_token.properties:GetPierceWalls())
                                             end
                                         end
                                     end
