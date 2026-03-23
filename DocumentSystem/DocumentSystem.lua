@@ -159,6 +159,37 @@ function CustomDocument:IsPlayerView(element)
     return (not self:HaveEditPermissions()) or (element:FindParentWithClass("playerPreview") ~= nil)
 end
 
+local function checkUnsavedChanges(writePanel, resultPanel, doc, onProceed)
+    if writePanel:HasClass("collapsed") then
+        onProceed()
+        return
+    end
+    local needSave = {save = false}
+    writePanel:FireEventTree("needsave", needSave)
+    if not needSave.save then
+        onProceed()
+        return
+    end
+    gui.ModalMessage {
+        title = "Unsaved Changes",
+        message = "You have unsaved changes. Are you sure you want to navigate away without saving?",
+        options = {
+            { text = "Cancel" },
+            {
+                text = "Save",
+                execute = function()
+                    resultPanel:FireEventTree("savedoc")
+                    if not dmhub.DeepEqual(doc, resultPanel.data.original) then
+                        doc:Upload(resultPanel.data.original)
+                    end
+                    onProceed()
+                end,
+            },
+            { text = "Don't Save", execute = onProceed },
+        },
+    }
+end
+
 function CustomDocument:CreateInterface(args)
     args = args or {}
     local readPanel = self:DisplayPanel()
@@ -308,6 +339,59 @@ function CustomDocument:CreateInterface(args)
 
     local m_controlMenu
 
+    -- Back button
+    m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.SimpleIconButton {
+        escapeActivates = false,
+        width = 16,
+        height = 16,
+        bgimage = "icons/icon_arrow/icon_arrow_28.png",
+        rotate = 180,
+        bgcolor = "#666666",
+        linger = function(element)
+            gui.Tooltip("Back")(element)
+        end,
+        press = function(element)
+            local dialogPanel = args.dialogPanel
+            if dialogPanel == nil then return end
+            local history = dialogPanel.data.history
+            if #history == 0 then return end
+            checkUnsavedChanges(writePanel, resultPanel, self, function()
+                dialogPanel:FireEvent("navigateBack")
+            end)
+        end,
+        refreshNavButtons = function(element)
+            local dialogPanel = args.dialogPanel
+            local hasHistory = dialogPanel ~= nil and #dialogPanel.data.history > 0
+            element.selfStyle.bgcolor = hasHistory and "white" or "#666666"
+        end,
+    }
+
+    -- Forward button
+    m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.SimpleIconButton {
+        escapeActivates = false,
+        width = 16,
+        height = 16,
+        bgimage = "icons/icon_arrow/icon_arrow_28.png",
+        bgcolor = "#666666",
+        linger = function(element)
+            gui.Tooltip("Forward")(element)
+        end,
+        press = function(element)
+            local dialogPanel = args.dialogPanel
+            if dialogPanel == nil then return end
+            local forwardHistory = dialogPanel.data.forwardHistory
+            if #forwardHistory == 0 then return end
+            checkUnsavedChanges(writePanel, resultPanel, self, function()
+                dialogPanel:FireEvent("navigateForward")
+            end)
+        end,
+        refreshNavButtons = function(element)
+            local dialogPanel = args.dialogPanel
+            local hasForward = dialogPanel ~= nil and #dialogPanel.data.forwardHistory > 0
+            element.selfStyle.bgcolor = hasForward and "white" or "#666666"
+        end,
+    }
+
     m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.SimpleIconButton {
         escapeActivates = false,
         width = 16,
@@ -393,55 +477,14 @@ function CustomDocument:CreateInterface(args)
                 element:FireEvent("press")
             end,
             press = function(element)
-                if not writePanel:HasClass("collapsed") then
-                    local needSave = {save = false}
-                    writePanel:FireEventTree("needsave", needSave)
-                    if not needSave.save then
-                        if args.close then
-                            args.close()
-                        else
-                            args.dialog:DestroySelf()
-                        end
-                        return
-                    end
-                    gui.ModalMessage {
-                        title = "Unsaved Changes",
-                        message = "You have unsaved changes. Are you sure you want to close without saving?",
-                        options = {
-                            { text = "Cancel" },
-                            {
-                                text = "Save",
-                                execute = function()
-                                    resultPanel:FireEventTree("savedoc")
-                                    if not dmhub.DeepEqual(self, resultPanel.data.original) then
-                                        self:Upload(resultPanel.data.original)
-                                    end
-                                    if args.close then
-                                        args.close()
-                                    else
-                                        args.dialog:DestroySelf()
-                                    end
-                                end,
-                            },
-                            {
-                                text = "Don't Save",
-                                execute = function()
-                                    if args.close then
-                                        args.close()
-                                    else
-                                        args.dialog:DestroySelf()
-                                    end
-                                end,
-                            },
-                        },
-                    }
-                else
+                local function doClose()
                     if args.close then
                         args.close()
                     else
                         args.dialog:DestroySelf()
                     end
                 end
+                checkUnsavedChanges(writePanel, resultPanel, self, doClose)
             end,
         }
     end
@@ -819,11 +862,93 @@ function CustomDocument:PresentDocument(args)
             element:SetAsLastSibling()
         end,
 
+        data = {
+            history = {},
+            forwardHistory = {},
+            currentDocId = self.id,
+        },
+
+        navigateToDocument = function(element, docId)
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local newDoc = docs[docId]
+            if newDoc == nil then return end
+
+            -- Push current onto history, clear forward
+            element.data.history[#element.data.history + 1] = element.data.currentDocId
+            element.data.forwardHistory = {}
+            element.data.currentDocId = docId
+
+            -- Replace the content panel (child index 2, after resize panel)
+            if element.children[2] then
+                element.children[2]:DestroySelf()
+            end
+            local navArgs = DeepCopy(args) or {}
+            navArgs.dialog = dialog
+            navArgs.dialogPanel = dialog
+            local newPanel = newDoc:CreateInterface(navArgs)
+            dialog:AddChild(newPanel)
+
+            dialog:FireEventTree("refreshNavButtons")
+        end,
+
+        navigateBack = function(element)
+            local history = element.data.history
+            if #history == 0 then return end
+
+            local prevDocId = history[#history]
+            history[#history] = nil
+
+            element.data.forwardHistory[#element.data.forwardHistory + 1] = element.data.currentDocId
+            element.data.currentDocId = prevDocId
+
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local prevDoc = docs[prevDocId]
+            if prevDoc == nil then return end
+
+            if element.children[2] then
+                element.children[2]:DestroySelf()
+            end
+            local navArgs = DeepCopy(args) or {}
+            navArgs.dialog = dialog
+            navArgs.dialogPanel = dialog
+            local newPanel = prevDoc:CreateInterface(navArgs)
+            dialog:AddChild(newPanel)
+
+            dialog:FireEventTree("refreshNavButtons")
+        end,
+
+        navigateForward = function(element)
+            local forwardHistory = element.data.forwardHistory
+            if #forwardHistory == 0 then return end
+
+            local nextDocId = forwardHistory[#forwardHistory]
+            forwardHistory[#forwardHistory] = nil
+
+            element.data.history[#element.data.history + 1] = element.data.currentDocId
+            element.data.currentDocId = nextDocId
+
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local nextDoc = docs[nextDocId]
+            if nextDoc == nil then return end
+
+            if element.children[2] then
+                element.children[2]:DestroySelf()
+            end
+            local navArgs = DeepCopy(args) or {}
+            navArgs.dialog = dialog
+            navArgs.dialogPanel = dialog
+            local newPanel = nextDoc:CreateInterface(navArgs)
+            dialog:AddChild(newPanel)
+
+            dialog:FireEventTree("refreshNavButtons")
+        end,
+
         gui.DialogResizePanel(self, dialogWidth, dialogHeight),
 
     }
 
     args.dialog = dialog
+    args.dialogPanel = dialog
     local mainPanel = self:CreateInterface(args)
     dialog:AddChild(mainPanel)
 
