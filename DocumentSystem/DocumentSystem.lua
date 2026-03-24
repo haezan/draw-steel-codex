@@ -207,6 +207,7 @@ local function buildBreadcrumbText(doc)
         builtinFolderNames[dmhub.loginUserid] = "My Private Documents"
     end
 
+    -- todo: game.GetMap(doc.parentFolder) using folder ID if nil, not a map. if not nil, it's a map
     local foldersTable = assets.documentFoldersTable or {}
     local parts = {}
     local folderId = doc.parentFolder
@@ -230,6 +231,240 @@ local function buildBreadcrumbText(doc)
     end
     reversed[#reversed + 1] = "**" .. (doc.description or "Untitled") .. "**"
     return table.concat(reversed, " > ")
+end
+
+--- Builds a popup tree view of the journal hierarchy
+--- @param currentDocId string The ID of the currently displayed document
+--- @param dialogPanel Panel The dialog panel with navigation handlers
+--- @return Panel The popup panel
+local function buildJournalTree(currentDocId, dialogPanel)
+    -- Built-in root folders
+    local builtinRoots = {}
+    builtinRoots["private"] = { description = "Private Documents", parentFolder = "" }
+    builtinRoots["public"] = { description = "Shared Documents", parentFolder = "" }
+    builtinRoots["templates"] = { description = "Templates", parentFolder = "" }
+    if game and game.currentMapId then
+        builtinRoots[game.currentMapId] = { description = "Map Documents", parentFolder = "" }
+    end
+    if dmhub and dmhub.loginUserid then
+        builtinRoots[dmhub.loginUserid] = { description = "My Private Documents", parentFolder = "" }
+    end
+
+    -- Merge built-in + user folders
+    local allFolders = {}
+    for k, v in pairs(builtinRoots) do allFolders[k] = v end
+    for k, v in pairs(assets.documentFoldersTable or {}) do
+        if not v.hidden then allFolders[k] = v end
+    end
+
+    -- Build foldersToMembers map (folders + custom docs only)
+    local foldersToMembers = {}
+    local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
+    for k, doc in pairs(customDocs) do
+        if not doc.hidden then
+            local pf = doc.parentFolder or "private"
+            foldersToMembers[pf] = foldersToMembers[pf] or {}
+            foldersToMembers[pf][k] = { type = "doc", id = k, description = doc.description or "Untitled" }
+        end
+    end
+    for k, folder in pairs(allFolders) do
+        if builtinRoots[k] == nil then
+            local pf = folder.parentFolder or "private"
+            foldersToMembers[pf] = foldersToMembers[pf] or {}
+            foldersToMembers[pf][k] = { type = "folder", id = k, description = folder.description or k }
+        end
+    end
+
+    -- Check if a folder is an ancestor of the current document
+    local function isAncestorOf(folderId, docId)
+        local doc = customDocs[docId]
+        if doc == nil then return false end
+        local pf = doc.parentFolder
+        local count = 0
+        while pf and pf ~= "" and count < 20 do
+            if pf == folderId then return true end
+            local folder = allFolders[pf]
+            if folder == nil then break end
+            pf = folder.parentFolder or "private"
+            count = count + 1
+        end
+        return false
+    end
+
+    -- Build a single folder entry (row + collapsible children)
+    local function buildFolderEntry(folderId, description, isExpanded, childrenPanels)
+        local isCollapsed = not isExpanded
+
+        local contentPanel = gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            lmargin = 16,
+            classes = { cond(isCollapsed, "collapsed") },
+            children = childrenPanels,
+        }
+
+        local arrow = gui.CollapseArrow {
+            classes = { cond(isCollapsed, "collapseSet") },
+            width = 10,
+            height = 10,
+            valign = "center",
+            lmargin = 4,
+        }
+
+        local folderRow = gui.Panel {
+            width = "100%",
+            height = 22,
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
+            bgimage = "panels/square.png",
+            styles = {
+                { bgcolor = "clear" },
+                { selectors = {"hover"}, bgcolor = "#ffffff44" },
+            },
+            press = function(element)
+                isCollapsed = not isCollapsed
+                contentPanel:SetClass("collapsed", isCollapsed)
+                arrow:SetClass("collapseSet", isCollapsed)
+            end,
+
+            arrow,
+            gui.Label {
+                text = description,
+                fontSize = 12,
+                color = "#cccccc",
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                lmargin = 4,
+                textWrap = false,
+            },
+        }
+
+        return gui.Panel {
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            folderRow,
+            contentPanel,
+        }
+    end
+
+    -- Recursive tree builder for one folder level
+    local function buildFolderChildren(folderId)
+        local members = foldersToMembers[folderId] or {}
+        local children = {}
+
+        local sorted = {}
+        for k, member in pairs(members) do
+            sorted[#sorted + 1] = member
+        end
+        table.sort(sorted, function(a, b)
+            if a.type ~= b.type then return a.type == "folder" end
+            return (a.description or "") < (b.description or "")
+        end)
+
+        for _, member in ipairs(sorted) do
+            if member.type == "folder" then
+                local expandThis = isAncestorOf(member.id, currentDocId)
+                local subChildren = buildFolderChildren(member.id)
+                children[#children + 1] = buildFolderEntry(member.id, member.description, expandThis, subChildren)
+            else
+                local isCurrentDoc = (member.id == currentDocId)
+                children[#children + 1] = gui.Panel {
+                    width = "100%",
+                    height = 22,
+                    flow = "horizontal",
+                    halign = "left",
+                    valign = "center",
+                    bgimage = "panels/square.png",
+                    styles = {
+                        { bgcolor = cond(isCurrentDoc, "#ffffff22", "clear") },
+                        { selectors = {"hover"}, bgcolor = "#ffffff44" },
+                    },
+                    press = function(element)
+                        if member.id == currentDocId then return end
+                        if dialogPanel and dialogPanel.data then
+                            dialogPanel:FireEvent("navigateToDocument", member.id)
+                        end
+                    end,
+
+                    gui.Panel {
+                        bgimage = "icons/icon_app/icon_app_107.png",
+                        bgcolor = cond(isCurrentDoc, "white", "#aaaaaa"),
+                        width = 14,
+                        height = 14,
+                        valign = "center",
+                        lmargin = 4,
+                    },
+                    gui.Label {
+                        text = member.description,
+                        fontSize = 12,
+                        color = cond(isCurrentDoc, "white", "#cccccc"),
+                        bold = isCurrentDoc,
+                        width = "auto",
+                        height = "auto",
+                        valign = "center",
+                        lmargin = 4,
+                        textWrap = false,
+                    },
+                }
+            end
+        end
+        return children
+    end
+
+    -- Build root-level entries
+    local rootChildren = {}
+    local rootOrder = {"public", "private", "templates"}
+    if game and game.currentMapId then rootOrder[#rootOrder + 1] = game.currentMapId end
+    if dmhub and dmhub.loginUserid then rootOrder[#rootOrder + 1] = dmhub.loginUserid end
+
+    for _, rootId in ipairs(rootOrder) do
+        local root = builtinRoots[rootId]
+        if root then
+            local subChildren = buildFolderChildren(rootId)
+            if #subChildren > 0 then
+                local expandThis = isAncestorOf(rootId, currentDocId)
+                    or (customDocs[currentDocId] and (customDocs[currentDocId].parentFolder or "private") == rootId)
+                rootChildren[#rootChildren + 1] = buildFolderEntry(rootId, root.description, expandThis, subChildren)
+            end
+        end
+    end
+
+    return gui.Panel {
+        width = 0,
+        height = 0,
+        halign = "left",
+        valign = "bottom",
+
+        gui.Panel {
+            styles = {Styles.Default},
+            classes = {"journalTreePopup"},
+            bgimage = "panels/square.png",
+            bgcolor = "#1a1a1a",
+            border = 1,
+            borderColor = "#555555",
+            width = 300,
+            height = "auto",
+            maxHeight = 400,
+            halign = "left",
+            valign = "top",
+            flow = "vertical",
+            vpad = 4,
+            hpad = 4,
+
+            gui.Panel {
+                width = "100%",
+                height = "auto",
+                maxHeight = 392,
+                flow = "vertical",
+                vscroll = true,
+                children = rootChildren,
+            },
+        },
+    }
 end
 
 function CustomDocument:CreateInterface(args)
@@ -540,6 +775,23 @@ function CustomDocument:CreateInterface(args)
         lmargin = 8,
         textOverflow = "ellipsis",
         textWrap = false,
+        styles = {
+            { color = "#999999" },
+            { selectors = {"hover"}, color = "#ffffff" },
+        },
+        press = function(element)
+            if element.popup then
+                element.popup = nil
+                return
+            end
+            local docId = self.id
+            local dp = args.dialogPanel
+            if dp and dp.data and dp.data.currentDocId then
+                docId = dp.data.currentDocId
+            end
+            element.popupPositioning = "panel"
+            element.popup = buildJournalTree(docId, args.dialogPanel)
+        end,
         refreshNavButtons = function(element)
             local dialogPanel = args.dialogPanel
             if dialogPanel and dialogPanel.data and dialogPanel.data.currentDocId then
