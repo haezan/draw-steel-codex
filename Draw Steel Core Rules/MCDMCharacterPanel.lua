@@ -79,12 +79,12 @@ TacPanelSizes.Fonts = {
     charTitle = 12,
     charValue = 30,
 
-    hrChipValue = 14,
-    hrChipEvent = 12,
-    hrChipFreq = 12,
-    growHRTitle = 14,
-    grValue = 16,
-    grText = 14,
+    hrChipValue = 12,
+    hrChipEvent = 10,
+    hrChipFreq = 10,
+    growHRTitle = 12,
+    grValue = 14,
+    grText = 12,
 
     skillsLangs = 14,
 
@@ -328,7 +328,7 @@ TacPanelStyles.TokenBox = {
         height = "auto",
         valign = "top",
         halign = "center",
-        vmargin = 4,
+        tmargin = 4,
         fontFace = "Berling",
         fontSize = 12,
         textAlignment = "center",
@@ -376,6 +376,7 @@ TacPanelStyles.TokenBox = {
         width = "auto",
         height = "auto",
         valign = "top",
+        tmargin = -4,
         hmargin = 6,
         fontFace = "Newzald",
         fontSize = 30,
@@ -392,8 +393,8 @@ TacPanelStyles.TokenBox = {
         selectors = {"refresh-icon"},
         halign = "right",
         valign = "bottom",
-        hmargin = 6,
-        vmargin = 6,
+        hmargin = 4,
+        vmargin = 4,
     }
 }
 TacPanelStyles.Stamina = {
@@ -811,7 +812,7 @@ TacPanelStyles.CharacteristicsPanel = {
         height = "auto",
         halign = "center",
         valign = "top",
-        tmargin = 4,
+        -- tmargin = 4,
         color = MUTED,
         fontFace = "Newzald",
         fontSize = TacPanelSizes.Fonts.charValue,
@@ -1700,6 +1701,7 @@ function TacPanel.HeroTokenBox()
         gui.Panel{
             classes = {"container"},
             halign = "center",
+            valign = "top",
             flow = "horizontal",
             gui.Panel{
                 classes = {"icon", "hero-tokens"},
@@ -2085,7 +2087,7 @@ function TacPanel.Summary()
                         else
                             text = string.format("LEVEL %d", level)
                         end
-                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charLevel, 14, #text)
+                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charLevel, 12, #text)
                         element.text = text
                     end,
                     setToken = function(element, token)
