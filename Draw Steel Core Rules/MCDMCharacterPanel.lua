@@ -79,12 +79,12 @@ TacPanelSizes.Fonts = {
     charTitle = 12,
     charValue = 30,
 
-    hrChipValue = 14,
-    hrChipEvent = 12,
-    hrChipFreq = 12,
-    growHRTitle = 14,
-    grValue = 16,
-    grText = 14,
+    hrChipValue = 12,
+    hrChipEvent = 10,
+    hrChipFreq = 10,
+    growHRTitle = 12,
+    grValue = 14,
+    grText = 12,
 
     skillsLangs = 14,
 
@@ -258,7 +258,7 @@ TacPanelStyles.SummaryInfo = {
 
     -- Control buttons below portrait
     {
-        selectors = {"vision-btn"},
+        selectors = {"toggle-btn"},
         halign = "left",
         valign = "top",
         pad = 4,
@@ -267,17 +267,23 @@ TacPanelStyles.SummaryInfo = {
         borderColor = GRAY02,
     },
     {
-        selectors = {"vision-btn", "on"},
-        bgcolor = TEAL,
-    },
-    {
-        selectors = {"vision-btn", "hover"},
+        selectors = {"toggle-btn", "hover"},
         brightness = 1.5,
         transitionTime = 0.2,
     },
     {
-        selectors = {"vision-btn", "press"},
+        selectors = {"toggle-btn", "press"},
         brightness = 0.5,
+    },
+    -- Light toggle button
+    {
+        selectors = {"light-btn"},
+        bgimage = "drawsteel/light-off.png",
+        bgcolor = "white",
+    },
+    {
+        selectors = {"light-btn", "light-on"},
+        bgcolor = GOLD_LIGHT,
     },
 }
 TacPanelStyles.TokenBox = {
@@ -322,7 +328,7 @@ TacPanelStyles.TokenBox = {
         height = "auto",
         valign = "top",
         halign = "center",
-        vmargin = 4,
+        tmargin = 4,
         fontFace = "Berling",
         fontSize = 12,
         textAlignment = "center",
@@ -370,6 +376,7 @@ TacPanelStyles.TokenBox = {
         width = "auto",
         height = "auto",
         valign = "top",
+        tmargin = -4,
         hmargin = 6,
         fontFace = "Newzald",
         fontSize = 30,
@@ -386,8 +393,8 @@ TacPanelStyles.TokenBox = {
         selectors = {"refresh-icon"},
         halign = "right",
         valign = "bottom",
-        hmargin = 6,
-        vmargin = 6,
+        hmargin = 4,
+        vmargin = 4,
     }
 }
 TacPanelStyles.Stamina = {
@@ -805,7 +812,7 @@ TacPanelStyles.CharacteristicsPanel = {
         height = "auto",
         halign = "center",
         valign = "top",
-        tmargin = 4,
+        -- tmargin = 4,
         color = MUTED,
         fontFace = "Newzald",
         fontSize = TacPanelSizes.Fonts.charValue,
@@ -1694,6 +1701,7 @@ function TacPanel.HeroTokenBox()
         gui.Panel{
             classes = {"container"},
             halign = "center",
+            valign = "top",
             flow = "horizontal",
             gui.Panel{
                 classes = {"icon", "hero-tokens"},
@@ -2079,7 +2087,7 @@ function TacPanel.Summary()
                         else
                             text = string.format("LEVEL %d", level)
                         end
-                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charLevel, 14, #text)
+                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charLevel, 12, #text)
                         element.text = text
                     end,
                     setToken = function(element, token)
@@ -2146,7 +2154,7 @@ function TacPanel.Summary()
             classes = {"container"},
             flow = "horizontal",
             outlineButton(gui.EnhIconButton{
-                classes = {"vision-btn"},
+                classes = {"toggle-btn"},
                 bgimage = "panels/initiative/initiative-icon.png",
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
@@ -2176,15 +2184,14 @@ function TacPanel.Summary()
                 end,
             }),
             outlineButton(gui.Panel{
-                classes = {"vision-btn"},
-                bgimage = "icons/icon_weather/icon_weather_1.png",
+                classes = {"toggle-btn", "light-btn"},
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
+                bgimage = "drawsteel/light-off.png",
                 refreshCharacter = function(element, token)
-                    local bgcolor = (token.properties.selectedLoadout == 1)
-                        and GOLD_LIGHT
-                        or GRAY02
-                    element.selfStyle.bgcolor = bgcolor
+                    local lightOn = token.properties.selectedLoadout == 1
+                    element.selfStyle.bgimage = lightOn and "drawsteel/light-on.png" or "drawsteel/light-off.png"
+                    element.selfStyle.bgcolor = lightOn and GOLD_LIGHT or GRAY02
                 end,
                 setToken = function(element, token)
                     element:FireEvent("refreshCharacter", token)
@@ -2197,7 +2204,7 @@ function TacPanel.Summary()
                 end,
             }),
             outlineButton(gui.Panel{
-                classes = {"vision-btn", "collapsed"},
+                classes = {"toggle-btn", "collapsed"},
                 bgimage = "ui-icons/eye.png",
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
@@ -2324,7 +2331,7 @@ end
 --- Display the temp stamina box
 --- @return Panel
 function TacPanel.TempStamBox()
-    local placeholder = "p"
+    local placeholder = "b"
     return gui.Panel{
         classes = {"stamina-box", "temp"},
         gui.Label{
@@ -4383,7 +4390,7 @@ function TacPanel.MultiEdit()
             element:SetClass("collapsed", hasNonCombatant == false)
         end,
         gui.EnhIconButton{
-            classes = {"vision-btn"},
+            classes = {"toggle-btn"},
             bgimage = "panels/initiative/initiative-icon.png",
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
@@ -4412,7 +4419,7 @@ function TacPanel.MultiEdit()
             element:SetClass("collapsed", true)
         end,
         gui.EnhIconButton{
-            classes = {"vision-btn"},
+            classes = {"toggle-btn"},
             bgimage = "icons/icon_app/icon_app_18.png",
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
@@ -4498,7 +4505,7 @@ function TacPanel.MultiEdit()
             element:SetClass("collapsed", not haveInitiativeGrouping)
         end,
         gui.EnhIconButton{
-            classes = {"vision-btn"},
+            classes = {"toggle-btn"},
             bgimage = "icons/icon_app/icon_app_13.png",
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
@@ -4535,7 +4542,7 @@ function TacPanel.MultiEdit()
         classes = {"me-icon-wrap", "collapsed"},
         data = { mode = "Make Captain" },
         gui.EnhIconButton{
-            classes = {"vision-btn"},
+            classes = {"toggle-btn"},
             bgimage = "panels/hud/crown.png",
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
@@ -4626,7 +4633,7 @@ function TacPanel.MultiEdit()
     local formSquadBtn = gui.Panel{
         classes = {"me-icon-wrap", "collapsed"},
         gui.EnhIconButton{
-            classes = {"vision-btn"},
+            classes = {"toggle-btn"},
             bgimage = "icons/icon_app/icon_app_2.png",
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
@@ -7826,7 +7833,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
         } or nil,
 
         newTacPanel and TacPanel.Statistics() or nil,
-        newTacPanel and TacPanel.Testing() or nil,
+        -- newTacPanel and TacPanel.Testing() or nil,
         newTacPanel and TacPanel.Routines() or nil,
         newTacPanel and TacPanel.AurasEmitting() or nil,
         newTacPanel and TacPanel.PersistentAbilities() or nil,
