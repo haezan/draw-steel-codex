@@ -32,6 +32,114 @@ CustomDocument.MaxLength = 8192*4
 
 CustomDocument.documentTypes = {}
 
+local g_tabbedViewer = nil
+
+-- Tab system colors
+local TAB_RICH_BLACK = "#040807"
+local TAB_CREAM = "#FFFEF8"
+local TAB_ACTIVE_BG = "#191A18"
+local TAB_INACTIVE_BG = "#10110F"
+local TAB_GOLD = "#966D4B"
+local TAB_REMOVE_RED = "#D53031"
+local TAB_REMOVE_BG = "#241c1a"
+
+-- Tab system sizes
+local TAB_HEIGHT = 18
+local TAB_MAX_WIDTH = 200
+local TAB_FONT_SIZE = 12
+local TAB_CLOSE_SIZE = 16
+local TAB_CLOSE_FONT = 10
+local TAB_BAR_HEIGHT = TAB_HEIGHT + 6
+local TAB_ARROW_WIDTH = 20
+
+local JournalTabStyles = {
+    {
+        selectors = {"panel", "journalTabBar"},
+        bgimage = true,
+        bgcolor = TAB_RICH_BLACK,
+        height = TAB_BAR_HEIGHT,
+        width = "100%-70",
+        flow = "horizontal",
+        halign = "left",
+        valign = "top",
+        borderColor = TAB_GOLD,
+        border = { x1 = 0, y1 = 1, x2 = 0, y2 = 0 },
+    },
+    {
+        selectors = {"panel", "journalTab"},
+        bgimage = true,
+        bgcolor = TAB_INACTIVE_BG,
+        height = TAB_HEIGHT,
+        width = "auto",
+        maxWidth = TAB_MAX_WIDTH,
+        flow = "horizontal",
+        halign = "left",
+        valign = "bottom",
+        hpad = 8,
+        vpad = 4,
+        cornerRadius = { x1 = 4, y1 = 4, x2 = 0, y2 = 0 },
+        border = { x1 = 0, y1 = 1, x2 = 0, y2 = 0 },
+        borderColor = TAB_GOLD,
+    },
+    {
+        selectors = {"panel", "journalTab", "hover"},
+        brightness = 1.3,
+        transitionTime = 0.15,
+    },
+    {
+        selectors = {"panel", "journalTab", "selected"},
+        bgcolor = TAB_ACTIVE_BG,
+        brightness = 1,
+        border = { x1 = 1, y1 = 0, x2 = 1, y2 = 1 },
+        borderColor = TAB_GOLD,
+    },
+    {
+        selectors = {"label", "journalTabLabel"},
+        width = "auto",
+        height = "auto",
+        fontSize = TAB_FONT_SIZE,
+        color = TAB_CREAM,
+        valign = "center",
+        textWrap = false,
+        textOverflow = "ellipsis",
+        maxWidth = TAB_MAX_WIDTH - 40,
+        rmargin = 6,
+    },
+    {
+        selectors = {"panel", "journalTabClose"},
+        width = TAB_CLOSE_SIZE,
+        height = TAB_CLOSE_SIZE,
+        halign = "right",
+        valign = "center",
+        bgimage = true,
+        bgcolor = TAB_REMOVE_BG,
+        border = 1,
+        borderColor = TAB_REMOVE_RED,
+        cornerRadius = 2,
+    },
+    {
+        selectors = {"panel", "journalTabClose", "hover"},
+        brightness = 1.5,
+    },
+    {
+        selectors = {"label", "journalTabCloseLabel"},
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontSize = TAB_CLOSE_FONT,
+        color = TAB_REMOVE_RED,
+    },
+    -- Tab scroll arrows
+    {
+        selectors = {"journalTabArrow"},
+        height = TAB_BAR_HEIGHT,
+        width = TAB_ARROW_WIDTH,
+        valign = "center",
+    },
+}
+
 function CustomDocument.Register(args)
     CustomDocument.documentTypes[args.id] = args
 end
@@ -559,7 +667,10 @@ function CustomDocument:CreateInterface(args)
                     end
                     self:Upload(original)
                     local dialog = element:FindParentWithClass("journalViewer")
-                    if dialog then dialog:FireEventTree("refreshNavButtons") end
+                    if dialog then
+                        dialog:FireEventTree("refreshNavButtons")
+                        dialog:FireEventTree("refreshTabTitle", self.id, self.description)
+                    end
                 end
             end,
         },
@@ -808,7 +919,7 @@ function CustomDocument:CreateInterface(args)
     m_controlMenuButtons[#m_controlMenuButtons + 1] = m_titlePanel
 
     local m_closeButton = gui.CloseButton {
-        classes = { cond(args.presentationMode or (args.dialog == nil and args.close == nil), "collapsed") },
+        classes = { cond(args.suppressCloseButton or args.presentationMode or (args.dialog == nil and args.close == nil), "collapsed") },
         width = buttonSize,
         height = buttonSize,
         hmargin = 4,
@@ -1014,6 +1125,15 @@ function CustomDocument:CreateInterface(args)
         halign = "left",
         valign = "top",
         flow = "vertical",
+        closetab = function(element)
+            local function doClose()
+                if args.close then
+                    args.close()
+                end
+            end
+            checkUnsavedChanges(writePanel, resultPanel, self, doClose)
+        end,
+
         refreshGame = function(element)
             if self.readonly then
                 return
@@ -1272,6 +1392,426 @@ local function DialogResizePanel(self, dialogWidth, dialogHeight)
 
 end
 
+local function CreateTabButton(doc, tabbedViewer)
+    local tabButton
+    tabButton = gui.Panel {
+        classes = {"panel", "journalTab"},
+        data = { docId = doc.id },
+        press = function(element)
+            tabbedViewer:FireEvent("switchToTab", element.data.docId)
+        end,
+
+        gui.Label {
+            classes = {"label", "journalTabLabel"},
+            text = doc.description or "Untitled",
+            refreshTabTitle = function(element, docId, newTitle)
+                if docId == tabButton.data.docId then
+                    element.text = newTitle
+                end
+            end,
+        },
+
+        gui.Panel {
+            classes = {"panel", "journalTabClose"},
+            press = function(element)
+                tabbedViewer:FireEvent("closeTab", tabButton.data.docId)
+            end,
+            gui.Label {
+                classes = {"label", "journalTabCloseLabel"},
+                text = "X",
+            },
+        },
+    }
+    return tabButton
+end
+
+function CustomDocument.GetOrCreateTabbedViewer()
+    if g_tabbedViewer ~= nil and g_tabbedViewer.valid then
+        return g_tabbedViewer
+    end
+
+    local dialogWidth = 1100
+    local dialogHeight = 940
+    local loc = {
+        x = 1920 * 0.5 * ((dmhub.screenDimensionsBelowTitlebar.x / dmhub.screenDimensionsBelowTitlebar.y) / (1920 / 1080)) - dialogWidth / 2,
+        y = 1080 * 0.5 - dialogHeight / 2,
+        width = dialogWidth,
+        height = dialogHeight,
+    }
+
+    local refreshTabVisibility
+
+    local tabScrollLeft = gui.PagingArrow {
+        facing = -1,
+        -- width = TAB_ARROW_WIDTH,
+        height = TAB_BAR_HEIGHT / 2,
+        valign = "center",
+        halign = "right",
+        press = function(element)
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            v.data.scrollOffset = math.max(0, v.data.scrollOffset - 1)
+            refreshTabVisibility(v)
+        end,
+    }
+
+    local tabScrollRight = gui.PagingArrow {
+        facing = 1,
+        -- width = TAB_ARROW_WIDTH,
+        height = TAB_BAR_HEIGHT / 2,
+        valign = "center",
+        halign = "right",
+        hmargin = 8,
+        press = function(element)
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            v.data.scrollOffset = v.data.scrollOffset + 1
+            refreshTabVisibility(v)
+        end,
+    }
+
+    local tabButtonsPanel = gui.Panel {
+        classes = {"panel", "journalTabBar"},
+    }
+
+    local tabArrowsPanel = gui.Panel {
+        width = 60,
+        height = TAB_BAR_HEIGHT,
+        halign = "right",
+        flow = "horizontal",
+        tabScrollLeft,
+        tabScrollRight,
+    }
+
+    local tabBar = gui.Panel {
+        width = "100%",
+        height = TAB_BAR_HEIGHT,
+        flow = "horizontal",
+        bgimage = true,
+        bgcolor = TAB_RICH_BLACK,
+        borderColor = TAB_GOLD,
+        border = { x1 = 0, y1 = 1, x2 = 0, y2 = 0 },
+        tabButtonsPanel,
+        tabArrowsPanel,
+    }
+
+    refreshTabVisibility = function(element)
+        local tabs = element.data.tabs
+        local offset = element.data.scrollOffset
+        local panelWidth = tabButtonsPanel.renderedWidth or (dialogWidth - 60)
+
+        -- Find how many tabs fit starting from offset
+        local visibleCount = 0
+        local usedWidth = 0
+        for i = offset + 1, #tabs do
+            local w = tabs[i].tabButton.renderedWidth or TAB_MAX_WIDTH
+            if usedWidth + w > panelWidth and visibleCount > 0 then
+                break
+            end
+            usedWidth = usedWidth + w
+            visibleCount = visibleCount + 1
+        end
+        visibleCount = math.max(visibleCount, 1)
+
+        -- Clamp offset
+        local maxOffset = math.max(0, #tabs - visibleCount)
+        if offset > maxOffset then
+            offset = maxOffset
+            element.data.scrollOffset = offset
+        end
+
+        -- Set visibility
+        local hasOverflow = #tabs > visibleCount or offset > 0
+        for i, tab in ipairs(tabs) do
+            tab.tabButton:SetClass("collapsed", i - 1 < offset or i - 1 >= offset + visibleCount)
+        end
+
+        tabScrollLeft:SetClass("hidden", not hasOverflow or offset <= 0)
+        tabScrollRight:SetClass("hidden", not hasOverflow or offset >= maxOffset)
+
+        element.data.visibleCount = visibleCount
+    end
+
+    local contentArea = gui.Panel {
+        classes = {"journalTabContent"},
+        width = "100%",
+        height = "100% available",
+        halign = "center",
+        valign = "top",
+    }
+
+    local innerPanel = gui.Panel {
+        width = "100%",
+        height = "100%",
+        flow = "vertical",
+        tabBar,
+        contentArea,
+    }
+
+    local viewer
+
+    local function findActiveTab(element)
+        for _, tab in ipairs(element.data.tabs) do
+            if tab.docId == element.data.activeDocId then
+                return tab
+            end
+        end
+        return nil
+    end
+
+    local function syncNavState(element)
+        local tab = findActiveTab(element)
+        if tab then
+            element.data.history = tab.history
+            element.data.forwardHistory = tab.forwardHistory
+        else
+            element.data.history = {}
+            element.data.forwardHistory = {}
+        end
+    end
+
+    local function replaceTabContent(activeTab, newDoc, navArgs)
+        activeTab.contentPanel:DestroySelf()
+        activeTab.contentPanel = newDoc:CreateInterface(navArgs)
+        contentArea:AddChild(activeTab.contentPanel)
+    end
+
+    local viewerStyles = {
+        Styles.Panel,
+        gui.Style {
+            classes = {"framedPanel"},
+            priority = 5,
+            opacity = 0.98,
+            borderWidth = 0,
+            borderColor = "clear",
+        },
+        gui.Style {
+            classes = {"framedPanel", "~uiblur"},
+            priority = 5,
+            opacity = 1,
+        },
+    }
+    for _, s in ipairs(JournalTabStyles) do
+        viewerStyles[#viewerStyles + 1] = s
+    end
+
+    viewer = gui.Panel {
+        styles = viewerStyles,
+        classes = {"framedPanel", "journalViewer", "journalTabbedViewer"},
+        bgimage = true,
+        blurBackground = true,
+        x = loc.x,
+        y = loc.y,
+        width = loc.width,
+        height = loc.height,
+        halign = "left",
+        valign = "top",
+        draggable = true,
+        drag = function(element)
+            element.x = element.xdrag
+            element.y = element.ydrag
+            element:SetAsLastSibling()
+        end,
+        click = function(element)
+            element:SetAsLastSibling()
+        end,
+
+        data = {
+            tabs = {},
+            activeDocId = nil,
+            scrollOffset = 0,
+            history = {},
+            forwardHistory = {},
+        },
+
+        addTab = function(element, doc, args)
+            for _, tab in ipairs(element.data.tabs) do
+                if tab.docId == doc.id then
+                    element:FireEvent("switchToTab", doc.id)
+                    return
+                end
+            end
+
+            local tabArgs = DeepCopy(args) or {}
+            tabArgs.dialog = viewer
+            tabArgs.dialogPanel = viewer
+            tabArgs.suppressCloseButton = true
+
+            local tabData = {
+                docId = doc.id,
+                history = {},
+                forwardHistory = {},
+            }
+
+            tabArgs.close = function()
+                local idx = nil
+                for i, t in ipairs(element.data.tabs) do
+                    if t.docId == tabData.docId then
+                        idx = i
+                        break
+                    end
+                end
+                if idx == nil then return end
+
+                tabData.tabButton:DestroySelf()
+                tabData.contentPanel:DestroySelf()
+                table.remove(element.data.tabs, idx)
+
+                refreshTabVisibility(element)
+
+                if #element.data.tabs == 0 then
+                    viewer:DestroySelf()
+                    g_tabbedViewer = nil
+                    return
+                end
+
+                if element.data.activeDocId == tabData.docId then
+                    local newIndex = math.min(idx, #element.data.tabs)
+                    element:FireEvent("switchToTab", element.data.tabs[newIndex].docId)
+                end
+            end
+            tabData.close = tabArgs.close
+
+            local contentPanel = doc:CreateInterface(tabArgs)
+            contentPanel:SetClass("collapsed", true)
+
+            local tabButton = CreateTabButton(doc, viewer)
+
+            tabData.tabButton = tabButton
+            tabData.contentPanel = contentPanel
+            element.data.tabs[#element.data.tabs + 1] = tabData
+
+            tabButtonsPanel:AddChild(tabButton)
+            contentArea:AddChild(contentPanel)
+
+            refreshTabVisibility(element)
+            element:FireEvent("switchToTab", doc.id)
+        end,
+
+        switchToTab = function(element, docId)
+            element.data.activeDocId = docId
+            for i, tab in ipairs(element.data.tabs) do
+                tab.contentPanel:SetClass("collapsed", tab.docId ~= docId)
+                tab.tabButton:SetClass("selected", tab.docId == docId)
+                if tab.docId == docId then
+                    local idx = i - 1
+                    local vc = element.data.visibleCount or 5
+                    if idx < element.data.scrollOffset then
+                        element.data.scrollOffset = idx
+                    elseif idx >= element.data.scrollOffset + vc then
+                        element.data.scrollOffset = idx - vc + 1
+                    end
+                end
+            end
+            refreshTabVisibility(element)
+            syncNavState(element)
+            element:FireEventTree("refreshNavButtons")
+        end,
+
+        closeTab = function(element, docId)
+            for _, tab in ipairs(element.data.tabs) do
+                if tab.docId == docId then
+                    tab.contentPanel:FireEvent("closetab")
+                    return
+                end
+            end
+        end,
+
+        navigateToDocument = function(element, docId)
+            local activeTab = findActiveTab(element)
+            if activeTab == nil then return end
+
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local newDoc = docs[docId]
+            if newDoc == nil then return end
+
+            activeTab.history[#activeTab.history + 1] = activeTab.docId
+            activeTab.forwardHistory = {}
+            activeTab.docId = docId
+            activeTab.tabButton.data.docId = docId
+
+            local navArgs = {
+                dialog = viewer,
+                dialogPanel = viewer,
+                suppressCloseButton = true,
+                close = activeTab.close,
+            }
+            replaceTabContent(activeTab, newDoc, navArgs)
+
+            tabButtonsPanel:FireEventTree("refreshTabTitle", docId, newDoc.description or "Untitled")
+            element.data.activeDocId = docId
+
+            syncNavState(element)
+            element:FireEventTree("refreshNavButtons")
+        end,
+
+        navigateBack = function(element)
+            local activeTab = findActiveTab(element)
+            if activeTab == nil or #activeTab.history == 0 then return end
+
+            local prevDocId = activeTab.history[#activeTab.history]
+            activeTab.history[#activeTab.history] = nil
+
+            activeTab.forwardHistory[#activeTab.forwardHistory + 1] = activeTab.docId
+            activeTab.docId = prevDocId
+            activeTab.tabButton.data.docId = prevDocId
+
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local prevDoc = docs[prevDocId]
+            if prevDoc == nil then return end
+
+            local navArgs = {
+                dialog = viewer,
+                dialogPanel = viewer,
+                suppressCloseButton = true,
+                close = activeTab.close,
+            }
+            replaceTabContent(activeTab, prevDoc, navArgs)
+
+            tabButtonsPanel:FireEventTree("refreshTabTitle", prevDocId, prevDoc.description or "Untitled")
+            element.data.activeDocId = prevDocId
+
+            syncNavState(element)
+            element:FireEventTree("refreshNavButtons")
+        end,
+
+        navigateForward = function(element)
+            local activeTab = findActiveTab(element)
+            if activeTab == nil or #activeTab.forwardHistory == 0 then return end
+
+            local nextDocId = activeTab.forwardHistory[#activeTab.forwardHistory]
+            activeTab.forwardHistory[#activeTab.forwardHistory] = nil
+
+            activeTab.history[#activeTab.history + 1] = activeTab.docId
+            activeTab.docId = nextDocId
+            activeTab.tabButton.data.docId = nextDocId
+
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local nextDoc = docs[nextDocId]
+            if nextDoc == nil then return end
+
+            local navArgs = {
+                dialog = viewer,
+                dialogPanel = viewer,
+                suppressCloseButton = true,
+                close = activeTab.close,
+            }
+            replaceTabContent(activeTab, nextDoc, navArgs)
+
+            tabButtonsPanel:FireEventTree("refreshTabTitle", nextDocId, nextDoc.description or "Untitled")
+            element.data.activeDocId = nextDocId
+
+            syncNavState(element)
+            element:FireEventTree("refreshNavButtons")
+        end,
+
+        DialogResizePanel(nil, dialogWidth, dialogHeight),
+
+        innerPanel,
+    }
+
+    g_tabbedViewer = viewer
+    return viewer
+end
+
 function CustomDocument:PresentDocument(args)
     args = args or {}
 
@@ -1435,7 +1975,21 @@ end
 
 function CustomDocument:ShowDocument(args)
     self = (dmhub.GetTable(self.tableName) or {})[self.id] or self --get the most up-to-date version.
-    GameHud.instance.documentsPanel:AddChild(self:PresentDocument(args))
+    args = args or {}
+
+    -- presentationMode uses the old single-window flow (for "Present to Players")
+    if args.presentationMode then
+        GameHud.instance.documentsPanel:AddChild(self:PresentDocument(args))
+        return
+    end
+
+    local viewer = CustomDocument.GetOrCreateTabbedViewer()
+
+    if viewer.parent == nil then
+        GameHud.instance.documentsPanel:AddChild(viewer)
+    end
+
+    viewer:FireEvent("addTab", self, args)
 end
 
 function CustomDocument:MatchesSearch(search)
