@@ -1515,18 +1515,22 @@ function CustomDocument.GetOrCreateTabbedViewer()
             end
         end
 
-        -- Find how many tabs fit starting from offset
-        local visibleCount = 0
-        local usedWidth = 0
-        for i = offset + 1, #tabs do
-            local w = tabs[i].tabButton.renderedWidth or TAB_MAX_WIDTH
-            if usedWidth + w > panelWidth and visibleCount > 0 then
-                break
+        -- Compute how many tabs fit starting from a given offset
+        local function countVisible(fromOffset)
+            local count = 0
+            local used = 0
+            for i = fromOffset + 1, #tabs do
+                local w = tabs[i].tabButton.renderedWidth or TAB_MAX_WIDTH
+                if used + w > panelWidth and count > 0 then
+                    break
+                end
+                used = used + w
+                count = count + 1
             end
-            usedWidth = usedWidth + w
-            visibleCount = visibleCount + 1
+            return math.max(count, 1)
         end
-        visibleCount = math.max(visibleCount, 1)
+
+        local visibleCount = countVisible(offset)
 
         -- Ensure active tab and its neighbors are within the visible window
         if activeIdx > 0 then
@@ -1534,8 +1538,10 @@ function CustomDocument.GetOrCreateTabbedViewer()
             local needLast = activeIdx < #tabs and activeIdx + 1 or activeIdx
             if needFirst - 1 < offset then
                 offset = needFirst - 1
+                visibleCount = countVisible(offset)
             elseif needLast > offset + visibleCount then
                 offset = needLast - visibleCount
+                visibleCount = countVisible(offset)
             end
         end
 
@@ -1543,6 +1549,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
         local maxOffset = math.max(0, #tabs - visibleCount)
         if offset > maxOffset then
             offset = maxOffset
+            visibleCount = countVisible(offset)
         end
         element.data.scrollOffset = offset
 
@@ -1682,8 +1689,6 @@ function CustomDocument.GetOrCreateTabbedViewer()
                 tabData.contentPanel:DestroySelf()
                 table.remove(element.data.tabs, idx)
 
-                refreshTabVisibility(element)
-
                 if #element.data.tabs == 0 then
                     viewer:DestroySelf()
                     g_tabbedViewer = nil
@@ -1693,6 +1698,8 @@ function CustomDocument.GetOrCreateTabbedViewer()
                 if element.data.activeDocId == tabData.docId then
                     local newIndex = math.min(idx, #element.data.tabs)
                     element:FireEvent("switchToTab", element.data.tabs[newIndex].docId)
+                else
+                    refreshTabVisibility(element)
                 end
             end
             tabData.close = tabArgs.close
@@ -1995,12 +2002,6 @@ function CustomDocument:ShowDocument(args)
     self = (dmhub.GetTable(self.tableName) or {})[self.id] or self --get the most up-to-date version.
     args = args or {}
 
-    -- presentationMode uses the old single-window flow (for "Present to Players")
-    if args.presentationMode then
-        GameHud.instance.documentsPanel:AddChild(self:PresentDocument(args))
-        return
-    end
-
     local viewer = CustomDocument.GetOrCreateTabbedViewer()
 
     if viewer.parent == nil then
@@ -2019,10 +2020,9 @@ GameHud.RegisterPresentableDialog {
     create = function(args)
         local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[args.docid]
         if doc ~= nil then
-            return doc:PresentDocument {
-                presentationMode = true,
-            }
+            doc:ShowDocument()
         end
+        return nil
     end,
     keeplocal = true,
 }
