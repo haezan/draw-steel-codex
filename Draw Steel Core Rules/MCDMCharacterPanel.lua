@@ -21,6 +21,7 @@ setting{
 }
 
 local PLACEHOLDER_TOKEN = "game-icons/griffin-symbol.png"
+local TRANSPARENT_BG = false
 
 local g_refreshChecklistName = {
     encounter = "encounter",
@@ -48,7 +49,10 @@ local DYING_FILL = "#6B2020"
 local WINDED_FILL = "#7A4A18"
 local HEALTHY_FILL = "#2D6A4F"
 local SURGE_BORDER = "#2E3F38"
-local DARKRED = "#140A0A"
+local DARKRED = "#481c1a"
+local DARKTEAL = "#002222"
+local DARKPURPLE = "#331133"
+local DARKBROWN = "#443322"
 local TEMP_STAM = "#8B5CF6"
 local MOVE_HINDERED = "#E07070"
 local CHARACTERISTIC_BG = "#0B0F0D"
@@ -153,13 +157,13 @@ TacPanelStyles.TacPanel = {
         vpad = 8,
         flow = "vertical",
         bgimage = "panels/square.png",
-        bgcolor = RICH_BLACK,
+        bgcolor = TRANSPARENT_BG and "clear" or RICH_BLACK,
         borderColor = GRAY02,
         border = { x1 = 0, y1 = 1, x2 = 0, y2 = 0 },
     },
     {
         selectors = {"panel", "tacpanel", "alt-bg"},
-        bgcolor = TEAL_BLACK,
+        bgcolor = TRANSPARENT_BG and "clear" or TEAL_BLACK,
     },
     {
         selectors = {"panel", "container"},
@@ -338,7 +342,7 @@ TacPanelStyles.TokenBox = {
     {
         selectors = {"panel", "tokenbox", "heroic-resources"},
         borderColor = GOLD_BORDER,
-        bgcolor = GOLD_BORDER .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or (GOLD_BORDER .. TRANSPARENCY),
     },
     {
         selectors = {"label", "tokenbox"},
@@ -444,29 +448,29 @@ TacPanelStyles.Stamina = {
     {
         selectors = {"panel", "stamina-box", "harm"},
         borderColor = RED,
-        bgcolor = RED .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKRED or (RED .. TRANSPARENCY),
     },
     {
         selectors = {"panel", "stamina-box", "stamina"},
         width = TacPanelSizes.Panels.stamBoxStam,
         borderColor = TEAL_HEAL,
-        bgcolor = TEAL_HEAL .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL_HEAL .. TRANSPARENCY),
     },
     {
         selectors = {"panel", "stamina-box", "heal"},
         borderColor = TEAL_HEAL,
-        bgcolor = TEAL_HEAL .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL_HEAL .. TRANSPARENCY),
     },
     {
         selectors = {"panel", "stamina-box", "recoveries"},
         width = TacPanelSizes.Panels.stamBoxRecoveries,
         borderColor = TEAL_HEAL,
-        bgcolor = TEAL_HEAL .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL_HEAL .. TRANSPARENCY),
     },
     {
         selectors = {"panel", "stamina-box", "temp"},
         borderColor = TEMP_STAM,
-        bgcolor = TEMP_STAM .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKPURPLE or (TEMP_STAM .. TRANSPARENCY),
     },
     {
         selectors = {"label", "stambox-title"},
@@ -709,12 +713,12 @@ TacPanelStyles.Stamina = {
     {
         selectors = {"panel", "health-status", "winded"},
         borderColor = WINDED_FILL,
-        bgcolor = WINDED_FILL .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or WINDED_FILL .. TRANSPARENCY,
     },
     {
         selectors = {"panel", "health-status", "dying"},
         borderColor = DYING_FILL,
-        bgcolor = DYING_FILL .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKRED or DYING_FILL .. TRANSPARENCY,
     },
     {   -- Status label inside the box
         selectors = {"label", "health-status-label"},
@@ -737,7 +741,7 @@ TacPanelStyles.Stamina = {
     {   -- Temp stam box: horizontal layout, TEMP_STAM colors
         selectors = {"panel", "health-status", "temp"},
         borderColor = TEMP_STAM,
-        bgcolor = TEMP_STAM .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKPURPLE or TEMP_STAM .. TRANSPARENCY,
         flow = "horizontal",
     },
     {   -- Temp HP value (Newzald 12pt white)
@@ -810,7 +814,7 @@ TacPanelStyles.CharacteristicsPanel = {
         hmargin = 4,
         flow = "vertical",
         bgimage = true,
-        bgcolor = TEAL .. TRANSPARENCY, --CHARACTERISTIC_BG,
+        bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL .. TRANSPARENCY), --CHARACTERISTIC_BG,
         borderColor = RULE,
         border = 1,
         cornerRadius = 4,
@@ -972,7 +976,7 @@ TacPanelStyles.HeroicResources = {
         border = 1,
         borderColor = GOLD,
         cornerRadius = 4,
-        bgcolor = GOLD .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or GOLD .. TRANSPARENCY,
     },
     {
         selectors = {"panel", "hr-chip", "completed"},
@@ -1042,7 +1046,7 @@ TacPanelStyles.HeroicResources = {
         vpad = 4,
         flow = "horizontal",
         bgimage = true,
-        bgcolor = GOLD .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or GOLD .. TRANSPARENCY,
         borderColor = GOLD,
         border = {x1 = 0, y1 = 1, x2 = 0, y2 = 0},
     },
@@ -1078,7 +1082,7 @@ TacPanelStyles.HeroicResources = {
     },
     {
         selectors = {"panel", "gr-row", "available"},
-        bgcolor = GOLD_LIGHT .. TRANSPARENCY
+        bgcolor = TRANSPARENT_BG and DARKBROWN or GOLD_LIGHT .. TRANSPARENCY
     },
     {
         selectors = {"label", "gr-value"},
@@ -1105,7 +1109,7 @@ TacPanelStyles.HeroicResources = {
         selectors = {"label", "gr-value", "parent:available"},
         color = GOLD,
         borderColor = GOLD,
-        bgcolor = GOLD .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or GOLD .. TRANSPARENCY,
     },
     {
         selectors = {"label", "gr-text"},
@@ -1163,9 +1167,9 @@ TacPanelStyles.MultiEdit = {
       bgimage = "panels/square.png",
       border = 1, cornerRadius = 4, hmargin = 2 },
     { selectors = {"panel", "me-input-box", "heal"},
-      bgcolor = TEAL_HEAL .. TRANSPARENCY, borderColor = TEAL_HEAL },
+      bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL_HEAL .. TRANSPARENCY), borderColor = TEAL_HEAL },
     { selectors = {"panel", "me-input-box", "damage"},
-      bgcolor = RED .. TRANSPARENCY, borderColor = RED },
+      bgcolor = TRANSPARENT_BG and DARKRED or (RED .. TRANSPARENCY), borderColor = RED },
     { selectors = {"input", "me-input"},
       width = "100%", height = "100%",
       bgcolor = "clear", borderWidth = 0, borderColor = "clear",
@@ -1249,7 +1253,7 @@ TacPanelStyles.Routines = {
     { selectors = {"panel", "rt-chip", "hover"},
       brightness = 1.3, transitionTime = 0.2 },
     { selectors = {"panel", "rt-chip", "selected"},
-      bgcolor = GOLD .. TRANSPARENCY, borderColor = GOLD },
+      bgcolor = TRANSPARENT_BG and DARKBROWN or (GOLD .. TRANSPARENCY), borderColor = GOLD },
 
     -- Routine chip label
     { selectors = {"label", "rt-chip"},
@@ -1291,7 +1295,7 @@ TacPanelStyles.Conditions = {
         bgimage = true,
         border = 1,
         borderColor = GOLD,
-        bgcolor = GOLD .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or (GOLD .. TRANSPARENCY),
         cornerRadius = 4,
     },
     {
@@ -1353,7 +1357,7 @@ TacPanelStyles.Conditions = {
         valign = "center",
         lmargin = 4,
         bgimage = true,
-        bgcolor = RED .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKRED or (RED .. TRANSPARENCY),
         border = 1,
         borderColor = RED,
         cornerRadius = 2,
@@ -1542,7 +1546,7 @@ TacPanelStyles.Resistances = {
       width = "47%", height = "auto", halign = "center",
       fontFace = "Berling", fontSize = TacPanelSizes.Fonts.resEntry,
       bold = false, color = CREAM, bgimage = "panels/square.png",
-      bgcolor = RED .. TRANSPARENCY, border = 1, borderColor = RED,
+      bgcolor = TRANSPARENT_BG and DARKRED or (RED .. TRANSPARENCY), border = 1, borderColor = RED,
       cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
 
     -- Immunity box
@@ -1550,7 +1554,7 @@ TacPanelStyles.Resistances = {
       width = "47%", height = "auto", halign = "center",
       fontFace = "Berling", fontSize = TacPanelSizes.Fonts.resEntry,
       bold = false, color = CREAM, bgimage = "panels/square.png",
-      bgcolor = TEAL_HEAL .. TRANSPARENCY, border = 1, borderColor = TEAL_HEAL,
+      bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL_HEAL .. TRANSPARENCY), border = 1, borderColor = TEAL_HEAL,
       cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
 }
 
@@ -2852,15 +2856,15 @@ function TacPanel.HealthBar()
     }
 
     -- Diamond positioned via floating wrapper inside barRow
-    local diamond = gui.Panel{
-        classes = {"panel", "health-diamond"},
-        rotate = 45,
-    }
-    local diamondPositioner = gui.Panel{
-        classes = {"panel", "health-diamond-positioner"},
-        floating = true,
-        diamond,
-    }
+    -- local diamond = gui.Panel{
+    --     classes = {"panel", "health-diamond"},
+    --     rotate = 45,
+    -- }
+    -- local diamondPositioner = gui.Panel{
+    --     classes = {"panel", "health-diamond-positioner"},
+    --     floating = true,
+    --     diamond,
+    -- }
 
     -- Status boxes: appear below bar segment when health is in that range
     local windedStatus = gui.Panel{
@@ -2937,7 +2941,7 @@ function TacPanel.HealthBar()
         dyingColumn,
         windedColumn,
         healthyColumn,
-        diamondPositioner,
+        -- diamondPositioner,
     }
 
     local function pct(value)
@@ -3000,11 +3004,11 @@ function TacPanel.HealthBar()
             local diamondPct = isHero
                 and ((currentHP + bloodied) / totalRange * 100)
                 or (currentHP / totalRange * 100)
-            diamondPct = math.max(0, math.min(100, diamondPct))
-            diamondPositioner.selfStyle.width = pct(diamondPct)
+            -- diamondPct = math.max(0, math.min(100, diamondPct))
+            -- diamondPositioner.selfStyle.width = pct(diamondPct)
 
             -- Diamond color: white normally, TEMP_STAM when temp HP > 0
-            diamond:SetClass("has-temp", tempHP > 0)
+            -- diamond:SetClass("has-temp", tempHP > 0)
 
             -- Status boxes: show when health is in that segment's range (mutually exclusive)
             local inDyingRange = isHero and currentHP < 0
@@ -3988,7 +3992,7 @@ function TacPanel.Routines()
                     text = "None",
                     selfStyle = noneSelected and {color = GOLD_LIGHT} or nil,
                 },
-                selfStyle = noneSelected and {bgcolor = GOLD .. TRANSPARENCY, borderColor = GOLD} or nil,
+                selfStyle = noneSelected and {bgcolor = TRANSPARENT_BG and DARKBROWN or (GOLD .. TRANSPARENCY), borderColor = GOLD} or nil,
             }
 
             for _,routine in ipairs(routines) do
