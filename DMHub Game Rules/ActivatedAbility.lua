@@ -1550,11 +1550,11 @@ function ActivatedAbility:FireUseAbility(casterToken, options)
 			}
 		end
 
-        casterToken.properties:DispatchEvent("useability", {usedability = self, cast = options.cast})
+        casterToken.properties:DispatchEvent("useability", {usedability = self, cast = options.symbols and options.symbols.cast})
 
         for _,target in ipairs(options.targets or {}) do
             if target.token ~= nil then
-                casterToken.properties:DispatchEvent("targetwithability", {usedability = self, cast = options.cast, target = target.token.properties})
+                casterToken.properties:DispatchEvent("targetwithability", {usedability = self, cast = options.symbols and options.symbols.cast, target = target.token.properties})
             end
         end
 	end
