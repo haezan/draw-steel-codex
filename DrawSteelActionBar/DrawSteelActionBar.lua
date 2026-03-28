@@ -1979,24 +1979,46 @@ ActionMenu = function()
     return resultPanel
 end
 
+-- Check if an ability deals damage (has Strike keyword, damage behavior, or power roll tiers with damage).
+local function AbilityDoesDamage(ability)
+    if ability:HasKeyword("Strike") then
+        return true
+    end
+
+    for _, behavior in ipairs(ability.behaviors) do
+        if behavior.typeName == "ActivatedAbilityDamageBehavior" then
+            return true
+        end
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            for _, entry in ipairs(behavior.tiers) do
+                if regex.MatchGroups(entry, " damage") ~= nil then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
 -- Determine arrow color based on the ability and the relationship between caster and target.
--- Red = strikes/enemy-only abilities, Green = ally-only, Black = mixed/other.
+-- Red = abilities that deal damage, Green = ally-targeting non-damage abilities, Black = other.
 local function GetArrowColor(ability, sourceToken, targetToken)
     if ability == nil or sourceToken == nil or targetToken == nil then
         return "red"
     end
 
-    if ability:HasKeyword("Strike") then
+    if AbilityDoesDamage(ability) then
         return "red"
     end
 
-    -- Check if this ability targets allies, enemies, or both based on the target filter.
-    local isFriend = sourceToken.properties:IsFriend(targetToken.properties)
+    -- Non-damage ability targeting a friend = green.
+    local isFriend = sourceToken:IsFriend(targetToken)
     if isFriend then
         return "green"
-    else
-        return "red"
     end
+
+    return "black"
 end
 
 local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, ability)
