@@ -881,7 +881,6 @@ function CBCharPanel._headerPanel()
             if token and token.name ~= element.text then
                 token.name = element.text
                 token:UploadAppearance()
-                -- _fireControllerEvent("tokenDataChanged")
             end
         end,
         edit = function(element)

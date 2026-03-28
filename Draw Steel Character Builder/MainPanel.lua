@@ -293,6 +293,10 @@ function CharacterBuilder.CreatePanel()
             end
         end,
 
+        notifyChangeSound = function(element)
+            audio.FireSoundEvent("Notify.TempStamina_Gain")
+        end,
+
         refreshBuilderState = function(element, state)
             -- We shouldn't do anything here; we fire this event
             -- print("THC:: MAIN:: RBS::", json(state))
@@ -673,6 +677,7 @@ function CharacterBuilder.CreatePanel()
         end,
 
         tokenDataChanged = function(element)
+            element:FireEvent("notifyChangeSound")
             local cs = CharacterBuilder._getCharacterSheet()
             if cs then
                 -- The character sheet fires refreshToken which in turn
