@@ -583,16 +583,17 @@ end
 --- Determine whether a table has a signature ability categorization within it, anywhere
 --- @param t table
 --- @return boolean
-function CBFeatureWrapper._hasSignature(t, depth)
-    depth = depth or 1
-    if depth > 12 then return false end
+function CBFeatureWrapper._hasSignature(t, visited)
+    visited = visited or {}
+    if visited[t] then return false end
+    visited[t] = true
 
     local searchText = "Signature Ability"
     if _safeGet(t, "categorization") == searchText then return true end
 
     for _,v in pairs(t) do
         if type(v) == "table" then
-            if CBFeatureWrapper._hasSignature(v, depth + 1) then
+            if CBFeatureWrapper._hasSignature(v, visited) then
                 return true
             end
         end

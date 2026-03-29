@@ -24,9 +24,9 @@
 --- @field taper any 
 --- @field parallax any 
 --- @field shadowGlowThickness any 
---- @field climbable string "NotClimbable"|"ClimbersOnly"|"AllCreatures" -- whether adjacent tiles allow climbing
---- @field solidity any
---- @field breakStamina any
+--- @field climbable any 
+--- @field solidity any 
+--- @field breakStamina any 
 --- @field rubbleKeyword any 
 --- @field rubbleTerrainId any 
 --- @field breakSound any 

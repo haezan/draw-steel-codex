@@ -6063,6 +6063,9 @@ function TacPanel.AddConditionMenu(args)
     table.sort(statusEffectData, function(a, b) return a.effect.name < b.effect.name end)
 
     local function makeStatusLabel(k, effect)
+        if effect == nil or effect.name == nil or effect.name == "" then
+            return nil
+        end
         return gui.Label{
             classes = {"menu-option"},
             text = effect.name,
