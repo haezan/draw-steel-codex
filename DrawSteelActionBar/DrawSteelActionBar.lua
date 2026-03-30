@@ -2034,9 +2034,9 @@ local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, abil
     for _,m in ipairs(modifiers) do
         local modInfo = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[m.modifier.modtype]
         local labelType = "neutral"
-        if modInfo ~= nil and modInfo.value > 0 then
+        if modInfo ~= nil and (modInfo.value or 0) > 0 then
             labelType = "buff"
-        elseif modInfo ~= nil and modInfo.value < 0 then
+        elseif modInfo ~= nil and (modInfo.value or 0) < 0 then
             labelType = "debuff"
         end
         printf("LABEL_DEBUG: AddLabel('%s', '%s') modtype='%s'", m.modifier.name, labelType, tostring(m.modifier.modtype))
