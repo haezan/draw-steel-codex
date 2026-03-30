@@ -152,7 +152,7 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
     if self.chooseResourceFromList then
         local resourceNames = {}
         for _,resourceid in ipairs(self:try_get("resourceOptions", {})) do
-            local resourceInfo = resourceTable[self.resourceid]
+            local resourceInfo = resourceTable[resourceid]
             if resourceInfo ~= nil then
                 resourceNames[#resourceNames+1] = resourceInfo.name
             end

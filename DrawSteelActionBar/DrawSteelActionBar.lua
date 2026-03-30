@@ -4060,7 +4060,7 @@ CreateAbilityController = function()
                                 prevOvershoot ~= g_pointTargeting.pathEndOvershoot
                             if not needRedraw then
                                 for i, loc in ipairs(prevPathEnd) do
-                                    if not loc.str == g_pointTargeting.shapePathEnd[i].str then
+                                    if loc.str ~= g_pointTargeting.shapePathEnd[i].str then
                                         needRedraw = true
                                         break
                                     end
@@ -4949,7 +4949,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     AddRadiusMarker(loc, lineDistance, 'white')
                 end
                 
-            elseif (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") and (g_currentAbility:try_get("targeting", "direct") == "pathfind" or g_currentAbility:try_get("targeting", "direct") == "vacated" or g_currentAbility:try_get("targeting", "direct") == "vacated") then
+            elseif (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") and (g_currentAbility:try_get("targeting", "direct") == "pathfind" or g_currentAbility:try_get("targeting", "direct") == "vacated" or g_currentAbility:try_get("targeting", "direct") == "straightline") then
                 ClearRadiusMarkers()
 
                 local waypoints = {}

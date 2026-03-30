@@ -3593,6 +3593,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 if options.delay ~= nil then
                     local a, b = coroutine.running()
+                    local delay = options.delay
 
                     if dmhub.inCoroutine then
                         local t = dmhub.Time()
@@ -3600,7 +3601,6 @@ function GameHud.CreateEmbeddedRollDialog()
                             coroutine.yield(0.02)
                         end
                     else
-                        local delay = options.delay
 
                         local optionsCopy = {}
                         for k, v in pairs(options) do

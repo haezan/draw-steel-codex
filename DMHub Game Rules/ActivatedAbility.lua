@@ -1588,7 +1588,7 @@ function ActivatedAbility:GetCost(casterToken, options)
 
 		local currentMoveSpeed = creature:CurrentMovementSpeed()
 		if creature:DistanceMovedThisTurnInFeet() + moveCost > currentMoveSpeed or currentMoveSpeed <= 0 then
-			canAfford = false
+			result.canAfford = false
 			result.cannotMove = true
 		end
 	end
