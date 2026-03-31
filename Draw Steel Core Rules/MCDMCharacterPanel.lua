@@ -21,6 +21,7 @@ setting{
 }
 
 local PLACEHOLDER_TOKEN = "game-icons/griffin-symbol.png"
+local TEMP_PLACEHOLDER = "*"
 local TRANSPARENT_BG = false
 
 local g_refreshChecklistName = {
@@ -532,11 +533,13 @@ TacPanelStyles.Stamina = {
         selectors = {"stambox-input", "temp"},
         color = TEMP_STAM,
         fontFace = "DrawSteelGlyphs",
+        fontSize = 12,
     },
     {
         selectors = {"stambox-input", "temp", "focus"},
         fontFace = "Newzald",
         color = CREAM,
+        fontSize = 20,
     },
     {
         selectors = {"input", "stambox-stam", "current"},
@@ -2486,7 +2489,6 @@ end
 --- Display the temp stamina box
 --- @return Panel
 function TacPanel.TempStamBox()
-    local placeholder = "b"
     return gui.Panel{
         classes = {"stamina-box", "temp"},
         gui.Label{
@@ -2497,7 +2499,7 @@ function TacPanel.TempStamBox()
             classes = {"stambox-input", "temp"},
             text = "",
             characterLimit = 8,
-            placeholderText = placeholder,
+            placeholderText = TEMP_PLACEHOLDER,
             bgimage = true,
             data = {
                 token = nil,
@@ -2517,7 +2519,7 @@ function TacPanel.TempStamBox()
                 end
             end,
             defocus = function(element)
-                element.placeholderText = placeholder
+                element.placeholderText = TEMP_PLACEHOLDER
             end,
             focus = function(element)
                 element.placeholderText = ""
