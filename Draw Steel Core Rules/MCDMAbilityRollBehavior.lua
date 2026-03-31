@@ -1885,7 +1885,7 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
     for i=1,#g_TierNames do
         local tier = g_TierNames[i]
         rows[#rows+1] = gui.TableRow{
-            gui.Label{ text = tier, fontFace = "DrawSteelGlyphs" },
+            gui.Label{ fontSize = 24, text = tier, fontFace = "DrawSteelGlyphs" },
             gui.Input{
                 text = self.tiers[i],
                 characterLimit = 256,
