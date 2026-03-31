@@ -1744,6 +1744,10 @@ ActionMenu = function()
     local m_args
     local resultPanel
     local m_showingAbility = false
+    local m_abilitiesSubmenu = nil
+    local m_signatureSubmenu = nil
+    local m_spacer = nil
+    local m_commonSignatureWrapper = nil
 
     local g_manualSetResourcePanel = gui.Label {
         classes = { "abilityHeading" },
@@ -1939,7 +1943,9 @@ ActionMenu = function()
             end
 
             for catid, abilities in pairs(abilitiesByGrouping) do
-                m_submenus[catid] = m_submenus[catid] or ActionSubMenu {}
+                if catid ~= "Abilities" and catid ~= "Signature Abilities" then
+                    m_submenus[catid] = m_submenus[catid] or ActionSubMenu {}
+                end
             end
 
             local children = {}
@@ -1952,6 +1958,43 @@ ActionMenu = function()
             table.sort(children, function(a, b)
                 return a.data.ord < b.data.ord
             end)
+
+            -- Stack Abilities on top of Signature Abilities in one column
+            if m_commonSignatureWrapper == nil then
+                m_abilitiesSubmenu = ActionSubMenu {}
+                m_signatureSubmenu = ActionSubMenu {}
+                m_spacer = gui.Panel {
+                    width = 205,
+                    height = 16,
+                    bgimage = true,
+                    bgcolor = "clear",
+                }
+                m_commonSignatureWrapper = gui.Panel {
+                    flow = "vertical",
+                    width = "auto",
+                    height = "auto",
+                    valign = "bottom",
+                }
+                m_commonSignatureWrapper.children = { m_abilitiesSubmenu, m_spacer, m_signatureSubmenu }
+            end
+            m_abilitiesSubmenu:FireEventTree("abilities", abilitiesByGrouping["Abilities"], "Abilities")
+            m_signatureSubmenu:FireEventTree("abilities", abilitiesByGrouping["Signature Abilities"], "Signature Abilities")
+            m_spacer:SetClass("collapsed", abilitiesByGrouping["Signature Abilities"] == nil)
+
+            local wrapperOrd = GameSystem.ActionBarGroupings["Signature Abilities"] or 1000
+            local inserted = false
+            local result = {}
+            for _, child in ipairs(children) do
+                if not inserted and wrapperOrd < child.data.ord then
+                    result[#result + 1] = m_commonSignatureWrapper
+                    inserted = true
+                end
+                result[#result + 1] = child
+            end
+            if not inserted then
+                result[#result + 1] = m_commonSignatureWrapper
+            end
+            children = result
 
             if element.data.triggerPanel == nil then
                 element.data.triggerPanel = PowerRollTriggersSubmenu()
