@@ -1001,7 +1001,7 @@ local FieldsPanel = function(fields, options)
 	local entries = {}
 
 	for k, field in pairs(fields) do
-		if not string.starts_with(k, "_") and (field.domain == nil or (options.domains ~= nil and options.domains[field.domain])) then
+		if not string.starts_with(k, "_") and (options.domains == nil or field.domain == nil or options.domains[field.domain]) then
 			entries[#entries + 1] = field
 		end
 	end
@@ -1548,7 +1548,9 @@ function gui.GoblinScriptEditorDialog(options)
 					content = listPanel,
 				}
 			)
+		end
 
+		if options.documentation.subject ~= nil then
 			documentationPanel:AddChild(
 				CollapsibleSectionPanel {
 					collapseSetting = "goblin-script-docs:collapse-subject",

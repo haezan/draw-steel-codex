@@ -226,7 +226,7 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
             castInfo.activity = "reaping"
 
             local startTime = dmhub.Time()
-            while startTime < dmhub.Time() + 120 and ActivatedAbility.CountActiveCasts{reaping = true} > 0 do
+            while dmhub.Time() < startTime + 120 and ActivatedAbility.CountActiveCasts{reaping = true} > 0 do
                 coroutine.yield(0.1)
             end
 

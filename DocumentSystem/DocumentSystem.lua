@@ -94,6 +94,21 @@ local JournalTabStyles = {
         borderColor = TAB_GOLD,
     },
     {
+        selectors = {"label", "journalTabBubbleIcon"},
+        width = TAB_HEIGHT - 4,
+        height = TAB_HEIGHT - 4,
+        bgimage = "panels/square.png",
+        bgcolor = "black",
+        borderWidth = 1,
+        borderColor = TAB_CREAM,
+        cornerRadius = "50% height",
+        textAlignment = "center",
+        fontSize = TAB_FONT_SIZE - 2,
+        color = TAB_CREAM,
+        valign = "center",
+        rmargin = 4,
+    },
+    {
         selectors = {"label", "journalTabLabel"},
         width = "auto",
         height = "auto",
@@ -1392,35 +1407,45 @@ local function DialogResizePanel(self, dialogWidth, dialogHeight)
 
 end
 
-local function CreateTabButton(doc, tabbedViewer, tabId)
+local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
     local tabButton
+    local children = {}
+
+    if bubbleIcon then
+        children[#children + 1] = gui.Label {
+            classes = {"label", "journalTabBubbleIcon"},
+            text = bubbleIcon,
+        }
+    end
+
+    children[#children + 1] = gui.Label {
+        classes = {"label", "journalTabLabel"},
+        text = doc.description or "Untitled",
+        refreshTabTitle = function(element, docId, newTitle)
+            if docId == tabButton.data.docId then
+                element.text = newTitle
+            end
+        end,
+    }
+
+    children[#children + 1] = gui.Panel {
+        classes = {"panel", "journalTabClose"},
+        press = function(element)
+            tabbedViewer:FireEvent("closeTab", tabButton.data.tabId)
+        end,
+        gui.Label {
+            classes = {"label", "journalTabCloseLabel"},
+            text = "X",
+        },
+    }
+
     tabButton = gui.Panel {
         classes = {"panel", "journalTab"},
         data = { tabId = tabId, docId = doc.id },
         press = function(element)
             tabbedViewer:FireEvent("switchToTab", element.data.tabId)
         end,
-
-        gui.Label {
-            classes = {"label", "journalTabLabel"},
-            text = doc.description or "Untitled",
-            refreshTabTitle = function(element, docId, newTitle)
-                if docId == tabButton.data.docId then
-                    element.text = newTitle
-                end
-            end,
-        },
-
-        gui.Panel {
-            classes = {"panel", "journalTabClose"},
-            press = function(element)
-                tabbedViewer:FireEvent("closeTab", tabButton.data.tabId)
-            end,
-            gui.Label {
-                classes = {"label", "journalTabCloseLabel"},
-                text = "X",
-            },
-        },
+        children = children,
     }
     return tabButton
 end
@@ -1504,7 +1529,8 @@ function CustomDocument.GetOrCreateTabbedViewer()
     refreshTabVisibility = function(element)
         local tabs = element.data.tabs
         local offset = element.data.scrollOffset
-        local panelWidth = tabButtonsPanel.renderedWidth or (dialogWidth - 60)
+        local rw = tabButtonsPanel.renderedWidth
+        local panelWidth = (rw ~= nil and rw >= dialogWidth - 60) and rw or (dialogWidth - 60)
 
         -- Find active tab index
         local activeIdx = 0
@@ -1718,7 +1744,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
             local contentPanel = doc:CreateInterface(tabArgs)
             contentPanel:SetClass("collapsed", true)
 
-            local tabButton = CreateTabButton(doc, viewer, tabData.tabId)
+            local tabButton = CreateTabButton(doc, viewer, tabData.tabId, args and args.bubbleIcon)
 
             tabData.tabButton = tabButton
             tabData.contentPanel = contentPanel

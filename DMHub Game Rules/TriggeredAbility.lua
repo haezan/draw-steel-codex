@@ -991,6 +991,14 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
 			end
 
+			-- Call OnFinishCastHandlers so that instant behaviors
+			-- (e.g. ActivatedAbilityApplyAbilityDurationEffect) can
+			-- schedule their cleanup and the triggerBefore complete
+			-- callback fires.
+			for i, handler in ipairs(options.OnFinishCastHandlers or {}) do
+				handler(self, casterToken, options)
+			end
+
 			return
 		end
 
