@@ -187,7 +187,7 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
         if existingEmbedded ~= nil then
             dialog = existingEmbedded
         else
-            local displayed = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true})
+            local displayed = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true})
             if displayed then
                 options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
                 options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()

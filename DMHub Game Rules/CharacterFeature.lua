@@ -917,7 +917,7 @@ function CharacterFeature.ListEditor(document, fieldName, options)
 				children = {
 					gui.Label{
 						classes = {'modifier-summary-label'},
-						text = item:GetSummaryText(),
+						text = StringInterpolateGoblinScript(item:GetSummaryText(), document),
                         markdown = true,
 					},
 

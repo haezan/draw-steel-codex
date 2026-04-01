@@ -1728,6 +1728,8 @@ local function ActionSubMenu(args)
                 element.children = m_children
             end
         end,
+
+        children = m_children,
     }
 
     return resultPanel

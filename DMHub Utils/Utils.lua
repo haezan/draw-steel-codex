@@ -411,7 +411,7 @@ function StringInterpolateGoblinScript(str, symbols, depth)
         value = match.alt or match.formula
         value = string.gsub(value, "|", "")
     else
-        value = dmhub.EvalGoblinScript(match.formula, symbols, "formula substitution")
+        value = ExecuteGoblinScript(match.formula, symbols, value, "formula substitution")
     end
 
     return string.format("%s%s%s", match.prefix, tostring(value), StringInterpolateGoblinScript(match.postfix, symbols, depth+1))

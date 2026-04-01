@@ -782,7 +782,6 @@ function ActivatedAbility:Render(options, params)
         if #tokenDependentChildren > 0 then
             tokenDependentInfoPanel = gui.Panel {
                 embedRollDialog = function(element, dialog)
-                    print("HIDE:: DO HIDE")
                     element:SetClass("collapsed", true)
                 end,
                 width = "100%",

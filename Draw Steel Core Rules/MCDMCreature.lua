@@ -3390,7 +3390,7 @@ function creature:ShowCharacteristicRollDialog(attrid)
 
     local displaying = false
     if token ~= nil then
-        displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true})
+        displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true, renderAsAbility = true})
     end
 
     local function ShowRollDialog(dialog)
@@ -4655,6 +4655,53 @@ creature.RegisterSymbol {
         type = "number",
         desc = "The number of players in the game, not counting followers.",
         seealso = {},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "shortname",
+    lookup = function(c)
+        local name = c:GetMonsterType()
+        if name == nil or name == "" then
+            return ""
+        end
+
+        -- Collect prefixes to try stripping: keywords and band name.
+        local prefixes = {}
+
+        local keywords = c:Keywords()
+        if keywords ~= nil then
+            for k, _ in pairs(keywords) do
+                if k ~= nil and k ~= "" then
+                    prefixes[#prefixes+1] = k
+                end
+            end
+        end
+
+        local group = c:MonsterGroup()
+        if group ~= nil and group.name ~= nil and group.name ~= "" then
+            prefixes[#prefixes+1] = group.name
+        end
+
+        -- Sort longest first so we strip the longest matching prefix.
+        table.sort(prefixes, function(a, b) return #a > #b end)
+
+        local lowerName = string.lower(name)
+        for _, prefix in ipairs(prefixes) do
+            local lowerPrefix = string.lower(prefix)
+            -- Check if name starts with this prefix followed by a space.
+            if string.sub(lowerName, 1, #lowerPrefix + 1) == lowerPrefix .. " " then
+                return string.sub(name, #lowerPrefix + 2)
+            end
+        end
+
+        return name
+    end,
+    help = {
+        name = "Short Name",
+        type = "string",
+        desc = "The creature's name with its band or keyword prefix removed. For example, 'Goblin Warrior' becomes 'Warrior' if 'Goblin' is a keyword or the band name.",
+        seealso = { "keywords" },
     }
 }
 

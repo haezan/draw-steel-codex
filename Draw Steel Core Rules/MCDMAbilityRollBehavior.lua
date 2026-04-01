@@ -1124,7 +1124,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
 
     --timeline roll dialog
-    local displaying = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true})
+    local displaying = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true, renderAsAbility = true})
     print("Timeline:: Displaying:", displaying)
 
     if displaying then

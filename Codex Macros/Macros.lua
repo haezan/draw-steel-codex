@@ -947,16 +947,20 @@ Commands.RegisterMacro{
     end,
     command = function(str)
         local args = Commands.SplitArgs(str)
-        local tokens = args[1]
-        local emote = args[2]
+        if #args < 1 then
+            return
+        end
 
-        if #args < 2 then
+        if #args == 1 then
+            local emote = args[1]
             for i, tok in ipairs(dmhub.selectedOrPrimaryTokens) do
                 if tok.properties ~= nil then
                     tok.properties:Emote(emote, { deleteOthers = true })
                 end
             end
         else
+            local tokens = args[1]
+            local emote = args[2]
             local allTokens = tokenSearch(tokens)
             for _, token in ipairs(allTokens) do
                 if token.properties ~= nil then

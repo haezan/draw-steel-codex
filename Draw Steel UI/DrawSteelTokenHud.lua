@@ -33,7 +33,7 @@ local g_deadMinionIconStyles = {
 --the wounded icon configuration.
 TokenUI.RegisterIcon{
     id = "wounded",
-    icon = "ui-icons/wounded-border.png",
+    icon = "drawsteel/Icon_STA_Winded.png",
     Filter = function(creature)
         --this controls if the icon should display.
 	    return (not creature.minion) and creature.damage_taken >= creature:MaxHitpoints()/2 and dmhub.GetSettingValue("showwoundedicon")

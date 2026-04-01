@@ -8,8 +8,10 @@ MCDMUtils = {
         end
         local name = string.lower(nameorid)
         for key,ability in unhidden_pairs(abilityTable) do
-            if string.lower(ability.name) == name then
-                return ability
+            if not getmetatable(ability) then
+                if string.lower(ability.name) == name then
+                    return ability
+                end
             end
         end
     
