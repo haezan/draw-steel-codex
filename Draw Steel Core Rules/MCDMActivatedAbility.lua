@@ -1526,7 +1526,6 @@ function ActivatedAbility:Render(options, params)
                             elseif self.targetType == "all" then
                                 element.text = "b"
                             elseif self.targetType == "self" then
-                                print("HAEZ:: Setting self target icon")
                                 element.text = "f"
                             elseif self.targetType == "map" then
                                 element.text = "c"
