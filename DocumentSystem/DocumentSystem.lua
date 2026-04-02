@@ -641,6 +641,42 @@ function CustomDocument:CreateInterface(args)
     local m_presentButton
     local m_playerPreviewButton
 
+    local m_bubbleIconInput = nil
+    if args.bubbleIcon then
+        m_bubbleIconInput = gui.Input {
+            text = args.bubbleIcon,
+            bgimage = "panels/square.png",
+            bgcolor = "black",
+            color = "white",
+            cornerRadius = "50% height",
+            borderColor = "white",
+            borderWidth = 1,
+            width = 25,
+            height = 25,
+            fontSize = 13,
+            valign = "center",
+            textAlignment = "center",
+            characterLimit = 3,
+            placeholderText = "",
+            editable = true,
+            lmargin = 12,
+            edit = function(element)
+                for _, bubble in pairs(dmhub.infoBubbles) do
+                    if bubble.document ~= nil and bubble.document.docid == self.id then
+                        bubble:BeginChanges()
+                        bubble.icon = element.text
+                        bubble:CompleteChanges("Update bubble icon")
+                        local dialog = element:FindParentWithClass("journalTabbedViewer")
+                        if dialog then
+                            dialog:FireEventTree("refreshTabBubbleIcon", self.id, element.text)
+                        end
+                        break
+                    end
+                end
+            end,
+        }
+    end
+
     local m_titlePanel = args.titlePanel or gui.Panel {
         classes = {cond(self:HaveEditPermissions(), "", "collapsed")},
         halign = "left",
@@ -649,17 +685,7 @@ function CustomDocument:CreateInterface(args)
         height = "auto",
         flow = "horizontal",
         rmargin = 4,
-        -- gui.Label {
-        --     text = "Document Name:",
-        --     fontSize = 16,
-        --     fontFace = "Berling",
-        --     color = "#999999",
-        --     width = "auto",
-        --     height = "auto",
-        --     valign = "center",
-        --     rmargin = 12,
-        --     lmargin = 12,
-        -- },
+        m_bubbleIconInput,
         gui.Input {
             text = self.description,
             fontSize = 14,
@@ -1423,8 +1449,14 @@ local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
 
     if bubbleIcon then
         children[#children + 1] = gui.Label {
-            classes = {"label", "journalTabBubbleIcon"},
-            text = bubbleIcon,
+            classes = {"label", "journalTabLabel"},
+            text = "(" .. bubbleIcon .. ")",
+            rmargin = 2,
+            refreshTabBubbleIcon = function(element, docId, newIcon)
+                if docId == tabButton.data.docId then
+                    element.text = "(" .. newIcon .. ")"
+                end
+            end,
         }
     end
 
