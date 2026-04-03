@@ -641,31 +641,58 @@ function CustomDocument:CreateInterface(args)
     local m_presentButton
     local m_playerPreviewButton
 
+    local m_bubbleIconInput = nil
+    if args.bubbleIcon then
+        m_bubbleIconInput = gui.Input {
+            text = args.bubbleIcon,
+            bgimage = "panels/square.png",
+            bgcolor = "black",
+            color = "white",
+            cornerRadius = "50% height",
+            borderColor = "white",
+            borderWidth = 1,
+            width = 25,
+            height = 25,
+            fontSize = 13,
+            valign = "center",
+            textAlignment = "center",
+            characterLimit = 3,
+            placeholderText = "",
+            editable = true,
+            lmargin = 12,
+            edit = function(element)
+                for _, bubble in pairs(dmhub.infoBubbles) do
+                    if bubble.document ~= nil and bubble.document.docid == self.id then
+                        bubble:BeginChanges()
+                        bubble.icon = element.text
+                        bubble:CompleteChanges("Update bubble icon")
+                        local dialog = element:FindParentWithClass("journalTabbedViewer")
+                        if dialog then
+                            dialog:FireEventTree("refreshTabBubbleIcon", self.id, element.text)
+                        end
+                        break
+                    end
+                end
+            end,
+        }
+    end
+
     local m_titlePanel = args.titlePanel or gui.Panel {
         classes = {cond(self:HaveEditPermissions(), "", "collapsed")},
-        halign = "right",
+        halign = "left",
         valign = "center",
         width = "auto",
         height = "auto",
         flow = "horizontal",
         rmargin = 4,
-        gui.Label {
-            text = "Document Name:",
-            fontSize = 16,
-            fontFace = "Berling",
-            color = "#999999",
-            width = "auto",
-            height = "auto",
-            valign = "center",
-            rmargin = 12,
-            lmargin = 12,
-        },
+        m_bubbleIconInput,
         gui.Input {
             text = self.description,
             fontSize = 14,
             width = 200,
             height = 18,
             valign = "center",
+            lmargin = 12,
             characterLimit = 48,
             editable = self:HaveEditPermissions(),
             editlag = 1.0,
@@ -703,6 +730,7 @@ function CustomDocument:CreateInterface(args)
             escapeActivates = false,
             width = buttonSize,
             height = buttonSize,
+            halign = "left",
             bgimage = "icons/icon_app/icon_app_34.png",
             thinkTime = 0.2,
             think = function(element)
@@ -741,6 +769,7 @@ function CustomDocument:CreateInterface(args)
             escapeActivates = false,
             width = buttonSize,
             height = buttonSize,
+            halign = "left",
             bgimage = "icons/icon_game/icon_game_193.png",
             press = function(element)
                 if m_editingButton ~= nil and m_editingButton:HasClass("active") then
@@ -763,6 +792,7 @@ function CustomDocument:CreateInterface(args)
             escapeActivates = false,
             width = buttonSize,
             height = buttonSize,
+            halign = "left",
             hmargin = 0,
             bgimage = "icons/icon_tool/icon_tool_79.png",
             press = function(element)
@@ -803,6 +833,7 @@ function CustomDocument:CreateInterface(args)
         escapeActivates = false,
         width = buttonSize,
         height = buttonSize,
+        halign = "left",
         bgimage = "icons/icon_arrow/icon_arrow_28.png",
         rotate = 180,
         bgcolor = "#666666",
@@ -830,6 +861,7 @@ function CustomDocument:CreateInterface(args)
         escapeActivates = false,
         width = buttonSize,
         height = buttonSize,
+        halign = "left",
         bgimage = "icons/icon_arrow/icon_arrow_28.png",
         bgcolor = "#666666",
         linger = function(element)
@@ -855,6 +887,7 @@ function CustomDocument:CreateInterface(args)
         escapeActivates = false,
         width = buttonSize,
         height = buttonSize,
+        halign = "left",
         bgimage = "icons/icon_tool/icon_tool_41.png",
         linger = function(element)
             gui.Tooltip(string.format("Decrease Font Size (Currently %d%%)", round(dmhub.GetSettingValue("journal:fontsize"))))(element)
@@ -871,6 +904,7 @@ function CustomDocument:CreateInterface(args)
         escapeActivates = false,
         width = buttonSize,
         height = buttonSize,
+        halign = "left",
         bgimage = "icons/icon_tool/icon_tool_40.png",
         linger = function(element)
             gui.Tooltip(string.format("Increase Font Size (Currently %d%%)", round(dmhub.GetSettingValue("journal:fontsize"))))(element)
@@ -895,6 +929,7 @@ function CustomDocument:CreateInterface(args)
                 escapeActivates = false,
                 width = buttonSize,
                 height = buttonSize,
+                halign = "left",
                 bgimage = "ui-icons/icon-scale.png",
                 press = function(element)
                     if resultPanel.data.watcher ~= nil then
@@ -1108,12 +1143,13 @@ function CustomDocument:CreateInterface(args)
 
         -- Row 2: tool buttons + document name
         gui.Panel {
-            width = "auto",
-            height = 28,
+            width = "98%",
+            height = "auto",
             flow = "horizontal",
             halign = "left",
-            valign = "center",
+            valign = "top",
             hmargin = 2,
+            wrap = true,
             children = m_controlMenuButtons,
         },
     }
@@ -1413,8 +1449,14 @@ local function CreateTabButton(doc, tabbedViewer, tabId, bubbleIcon)
 
     if bubbleIcon then
         children[#children + 1] = gui.Label {
-            classes = {"label", "journalTabBubbleIcon"},
-            text = bubbleIcon,
+            classes = {"label", "journalTabLabel"},
+            text = "(" .. bubbleIcon .. ")",
+            rmargin = 2,
+            refreshTabBubbleIcon = function(element, docId, newIcon)
+                if docId == tabButton.data.docId then
+                    element.text = "(" .. newIcon .. ")"
+                end
+            end,
         }
     end
 

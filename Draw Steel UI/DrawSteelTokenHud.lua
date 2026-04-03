@@ -39,6 +39,8 @@ TokenUI.RegisterIcon{
 	    return (not creature.minion) and creature.damage_taken >= creature:MaxHitpoints()/2 and dmhub.GetSettingValue("showwoundedicon")
     end,
 
+    hoverText = "Winded",
+
     --Only show to those who can't see the health bar.
     showToAll = true,
     showToGM = true,
@@ -250,7 +252,9 @@ TokenHud.RegisterPanel{
                                 click = function(element)
                                     token.properties:TriggerEvent("creaturedeath", {}) --this triggers the 'monster death' global event which will remove the minion.
                                     token.properties:MinionDeath()
-                                    --game.DeleteCharacters{token.charid}
+                                    if token.playerControlled then
+                                        game.DeleteCharacters{token.charid}
+                                    end
                                 end,
 
                                 thinkTime = g_deadMinionPulseSpeed,
