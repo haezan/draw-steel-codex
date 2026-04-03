@@ -21,7 +21,7 @@ end
 local g_activeRoll = nil
 local g_activeRollArgs = nil
 
-local g_timelineHighlightColor = "#6666ff"
+local g_timelineHighlightColor = Styles.Gold03
 
 local g_settingTriggerDelay = setting{
     id = "rolltriggerdelay",
@@ -50,6 +50,10 @@ setting {
         {
             value = "dm",
             text = cond(dmhub.isDM, "Visible to GM only", "Visible to you and GM"),
+        },
+        {
+            value = "dicetower",
+            text = "Dice Tower (Result visible to GM only)",
         }
     }
 }
@@ -71,6 +75,10 @@ local g_rollOptionsDM = {
         id = "dm",
         text = "Visible to GM only",
     },
+    {
+        id = "dicetower",
+        text = "Dice Tower",
+    },
 }
 
 local g_rollOptionsPlayer = {
@@ -81,6 +89,10 @@ local g_rollOptionsPlayer = {
     {
         id = "dm",
         text = "Visible to you and GM",
+    },
+    {
+        id = "dicetower",
+        text = "Dice Tower",
     },
 }
 
@@ -613,7 +625,7 @@ function GameHud.CreateEmbeddedRollDialog()
         height = 166*0.8,
         width = 33*0.8,
         bgimage = ActivatedAbility.TabBGImage(),
-        bgcolor = 'white',
+        bgcolor = Styles.Gold03,
 
         gui.Label{
             color = "black",
@@ -1471,7 +1483,7 @@ function GameHud.CreateEmbeddedRollDialog()
         height = 166*0.8,
         width = 33*0.8,
         bgimage = ActivatedAbility.TabBGImage(),
-        bgcolor = 'white',
+        bgcolor = Styles.Gold03,
 
         gui.Label{
             color = "black",
@@ -3143,7 +3155,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     height = 176*0.8,
                     width = 33*0.8,
                     bgimage = ActivatedAbility.TabBGImage(),
-                    bgcolor = 'white',
+                    bgcolor = Styles.Gold03,
 
                     gui.Label{
                         color = "black",
@@ -3977,7 +3989,9 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 OnHide()
 
-                local dmonly = dmhub.GetSettingValue("privaterolls") == "dm"
+                local rollVisibility = dmhub.GetSettingValue("privaterolls")
+                local dmonly = rollVisibility == "dm"
+                local dicetower = rollVisibility == "dicetower"
                 local instant = false
 
                 --we must save off anything from the surrounding scope since this dialog might be reused after this.
@@ -4218,6 +4232,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     silent = rollIsSilent,
                     delay = delayRoll,
                     dmonly = dmonly,
+                    dicetower = dicetower,
                     instant = instant,
                     roll = rollInput.text,
                     creature = creature,
@@ -4379,7 +4394,7 @@ function GameHud.CreateEmbeddedRollDialog()
                             end
 
                             print("AI:: ROLL COMPLETE...")
-                            if creature ~= nil and creature._tmp_aicontrol > 0 then
+                            if (creature ~= nil and creature._tmp_aicontrol > 0) or (dicetower and not dmhub.isDM) then
                             print("AI:: ROLL PRESS PROCEED...")
                                 proceedAfterRollButton:FireEvent("press")
                             end
@@ -4410,6 +4425,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         tokenid = rollArgs.tokenid,
                         properties = rollArgs.properties,
                         dmonly = rollArgs.dmonly,
+                        dicetower = rollArgs.dicetower,
                         instant = rollArgs.instant,
                         silent = rollArgs.silent,
                         delay = rollArgs.delay,

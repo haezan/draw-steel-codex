@@ -871,7 +871,7 @@ local function CreateReadOnlyRollInfo(shareData)
             height = 166 * 0.8,
             width = 33 * 0.8,
             bgimage = ActivatedAbility.TabBGImage(),
-            bgcolor = "white",
+            bgcolor = Styles.Gold03,
             rollDiceSettled = function(element)
                 element:SetClass("results", true)
             end,
