@@ -920,6 +920,49 @@ local function CreateTopBar()
             end,
         },
 
+        CreateCodexMenuItem{
+            name = "Bug Reports",
+            menuItems = function()
+                return {
+                    {
+                        text = "How to Report a Bug",
+                        click = function()
+                            gamehud:ModalDialog{
+                                title = "Reporting Bugs",
+                                width = 600,
+                                height = 400,
+                                buttons = {
+                                    {
+                                        text = "Open Discord Channel",
+                                        click = function()
+                                            dmhub.OpenURL("https://discord.com/channels/751501320640528396/1294537710702301194")
+                                        end,
+                                    },
+                                    {
+                                        text = "Close",
+                                        escapeActivates = true,
+                                    },
+                                },
+                                gui.Label{
+                                    width = "100%",
+                                    height = "auto",
+                                    fontSize = 16,
+                                    color = "white",
+                                    halign = "center",
+                                    valign = "center",
+                                    wrap = true,
+                                    hpad = 16,
+                                    vpad = 16,
+                                    borderBox = true,
+                                    text = "Found a bug? Please report it in our Discord bug-reports channel.\n\nWhen reporting, include:\n- A description of what happened\n- Steps to reproduce the issue\n- Any relevant screenshots or logs",
+                                },
+                            }
+                        end,
+                    },
+                }
+            end,
+        },
+
         m_presentationBar,
         CreateStatusBar(),
         m_searchBar,
