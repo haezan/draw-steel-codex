@@ -2033,7 +2033,7 @@ function BeginRoundChatMessage.Render(self, message)
 
             gui.Label{
                 classes = {newStyle,"chat-message-text"},
-                text = cond(self.round == 1, "Draw Steel!", string.format("TURN %d", self.round)),
+                text = cond(self.round == 1, "Draw Steel!", string.format("ROUND %d", self.round)),
                 bold = true,
                 width = "auto",
                 height = "auto",

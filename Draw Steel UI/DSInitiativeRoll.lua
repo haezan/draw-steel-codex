@@ -805,9 +805,9 @@ RollInitiativeChatMessage.monsterTokenIds = {}
 function RollInitiativeChatMessage.Render(selfInput, message)
     local winnerText
     if selfInput.winner == "players" then
-        winnerText = "Heroes win initiative!"
+        winnerText = "Heroes win turn order!"
     else
-        winnerText = "Monsters win initiative!"
+        winnerText = "Monsters win turn order!"
     end
 
     -- Collect all tokens and sort by playerControlled
