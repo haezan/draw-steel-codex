@@ -2695,6 +2695,39 @@ GameSystem.RegisterGoblinScriptField {
     end,
 }
 
+GameSystem.RegisterGoblinScriptField {
+    target = ActivatedAbility,
+    name = "TestSkills",
+    type = "set",
+    desc = "The skills applied to any test power rolls in this ability.",
+    seealso = {},
+    examples = {"Ability.TestSkills has 'Intimidate'"},
+    calculate = function(c)
+        local strings = {}
+        local seen = {}
+        local function addSkill(skillid)
+            if skillid ~= nil and skillid ~= "none" and not seen[skillid] then
+                seen[skillid] = true
+                local skill = dmhub.GetTable(Skill.tableName)[skillid]
+                if skill ~= nil then
+                    strings[#strings + 1] = skill.name
+                end
+            end
+        end
+        if c:try_get("isTest", false) then
+            addSkill(c:try_get("skillid"))
+        end
+        for _, behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" and behavior:try_get("isTest", false) then
+                addSkill(behavior:try_get("skillid"))
+            end
+        end
+        return StringSet.new {
+            strings = strings,
+        }
+    end,
+}
+
 ActivatedAbility.meleeAndRanged = false
 
 function ActivatedAbility:GetTypeIconForActionBar()
