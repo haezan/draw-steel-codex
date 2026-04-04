@@ -4137,7 +4137,7 @@ function creature:DispatchEventAndWait(eventName, info)
     local modName
     for i, mod in ipairs(mods) do
         if mod.mod:HasTriggeredEvent(self, eventName) then
-            modName = mod.mod.name
+            modName = mod.mod.triggeredAbility.name
             hasTrigger = true
             break
         end
