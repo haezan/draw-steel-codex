@@ -2636,7 +2636,7 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                                         for _, cid in ipairs(charids) do
                                             local tok = dmhub.GetCharacterById(cid)
                                             if tok ~= nil then
-                                                local classInfo = tok.properties:GetClass()
+                                                local classInfo = tok.properties:IsHero() and tok.properties:GetClass() or nil
                                                 track("character_delete", {
                                                     class = classInfo and classInfo.name or "",
                                                     ancestry = tok.properties:RaceOrMonsterType() or "",
