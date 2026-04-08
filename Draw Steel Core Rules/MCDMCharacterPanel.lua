@@ -291,6 +291,11 @@ TacPanelStyles.SummaryInfo = {
         fontSize = TacPanelSizes.Fonts.charSubclass,
         color = MUTED,
     },
+    {
+        selectors = {"label", "summary-info", "monster-keywords"},
+        fontSize = TacPanelSizes.Fonts.charLevel,
+        color = MUTED,
+    },
 
 }
 TacPanelStyles.ControlButtons = {
@@ -2354,6 +2359,16 @@ function TacPanel.Summary()
                 styles = TacPanelStyles.SummaryInfo,
                 classes = {"summary-info"},
                 width = TacPanelSizes.Panels.summaryNames,
+                refreshCharacter = function(element, token)
+                    if token.properties:IsMonster() then
+                        element.selfStyle.width = TacPanelSizes.Panels.summaryNames + 100
+                    else
+                        element.selfStyle.width = TacPanelSizes.Panels.summaryNames
+                    end
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
 
                 -- Name
                 gui.Label{
@@ -2372,13 +2387,39 @@ function TacPanel.Summary()
                     end,
                 },
 
+                -- Monster Keywords
+                gui.Label{
+                    classes = {"summary-info", "monster-keywords"},
+                    refreshCharacter = function(element, token)
+                        local text = ""
+                        if token.properties:IsMonster() then
+                            local keywords = token.properties.keywords or {}
+                            local sorted = {}
+                            for k, _ in pairs(keywords) do
+                                sorted[#sorted+1] = ActivatedAbility.CanonicalKeyword(k)
+                            end
+                            table.sort(sorted)
+                            text = string.join(sorted, ", ")
+                        end
+                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charClass, 9, #text)
+                        element.text = text
+                    end,
+                },
+
                 -- Level
                 gui.Label{
                     classes = {"summary-info", "level"},
                     refreshCharacter = function(element, token)
                         local level = token.properties:CharacterLevel()
                         local text = element.text
-                        if level == 1 then
+                        if token.properties:IsMonster() then
+                            local role = token.properties:try_get("role", "")
+                            if role ~= "" then
+                                text = string.format("LEVEL %d %s", level, string.upper(role))
+                            else
+                                text = string.format("LEVEL %d", level)
+                            end
+                        elseif level == 1 then
                             local extra = token.properties:ExtraLevelInfo()
                             local encounter = type(extra) == "table" and extra.encounter or nil
                             local mapping = {"FIRST ENCOUNTER", "SECOND ENCOUNTER", "THIRD ENCOUNTER", "FOURTH ENCOUNTER"}
@@ -2437,12 +2478,19 @@ function TacPanel.Summary()
                         element:FireEvent("refreshCharacter", token)
                     end,
                 },
+
             },
 
             -- Col3: Token boxes
             gui.Panel{
                 classes = {"container"},
                 flow = "vertical",
+                refreshCharacter = function(element, token)
+                    element:SetClass("collapsed", token.properties:IsMonster())
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
 
                 TacPanel.HeroTokenBox(),
                 TacPanel.SurgesBox(),
