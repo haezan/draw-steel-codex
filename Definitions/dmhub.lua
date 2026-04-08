@@ -1174,6 +1174,13 @@ function dmhub.HasSetting(settingid)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetSettingInfo: Returns a table with 'description' and 'value' fields for the given setting, or nil if the setting does not exist.
+--- @param settingid string
+--- @return {description: string, value: string}|nil
+function dmhub.GetSettingInfo(settingid)
+	-- dummy implementation for documentation purposes only
+end
+
 --- GetSettingValue: Get the value of a game setting.
 --- @return number
 function dmhub.GetSettingValue()

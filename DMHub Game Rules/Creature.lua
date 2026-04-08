@@ -993,6 +993,13 @@ function creature:InflictCondition(conditionid, args)
 	self.inflictedConditions = inflictedConditions
 
     audio.DispatchSoundEvent(conditionInfo:SoundEvent())
+
+    self:DispatchEvent("inflictcondition", {
+        condition = conditionInfo.name,
+        hasattacker = false,
+        attacker = nil,
+    })
+
 end
 
 function creature:FillCalculatedStatusIcons(result)
@@ -5773,6 +5780,9 @@ end
 
 --called by dmhub when a creature teleports.
 function creature:OnTeleport()
+	if self:try_get("_tmp_suppressTeleportEvent") then
+		return
+	end
 	self:DispatchEvent("teleport")
 end
 

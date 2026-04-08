@@ -1157,11 +1157,13 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
                 local persistence = ability:Persistence()
                 if persistence ~= nil and persistence.enabled and obj ~= nil then
                     local persistenceInfo = casterToken.properties:MostRecentPersistentAbility()
-                    local objects = persistenceInfo:get_or_add("objects", {})
-                    objects[#objects + 1] = {
-                        floorid = obj.floorid,
-                        objid = obj.objid,
-                    }
+                    if persistenceInfo ~= nil then
+                        local objects = persistenceInfo:get_or_add("objects", {})
+                        objects[#objects + 1] = {
+                            floorid = obj.floorid,
+                            objid = obj.objid,
+                        }
+                    end
                 end
 
                 casterToken.properties:AddAura(auraInstance)

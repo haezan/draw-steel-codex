@@ -2273,10 +2273,10 @@ local function CreateTargetInfo(spell)
         type = string.lower(spell.typeName),
         guid = dmhub.GenerateGuid(),
         action = spell,
-        execute = function(targetToken, info) --info has {targetEffects = {list of effect panels}}
+        execute = function(targetToken, info) --info has {targetEffect = {list of effect panels}}
             local exists = list_contains(g_targetsChosen, targetToken.id)
 
-            for i, effect in ipairs(info.targetEffect) do
+            for i, effect in ipairs(info.targetEffect or {}) do
                 effect:SetClass('target-selected', true)
                 effect:SetClass('two', false)
                 effect:SetClass('three', false)
@@ -2298,7 +2298,7 @@ local function CreateTargetInfo(spell)
                         end
                     end
 
-                    for i, effect in ipairs(info.targetEffect) do
+                    for i, effect in ipairs(info.targetEffect or {}) do
                         effect:SetClass('two', ntargets >= 2)
                         effect:SetClass('three', ntargets >= 3)
                     end
@@ -2315,7 +2315,7 @@ local function CreateTargetInfo(spell)
                     if g_firstTarget == targetToken.id then
                         g_firstTarget = g_targetsChosen[1]
                     end
-                    for i, effect in ipairs(info.targetEffect) do
+                    for i, effect in ipairs(info.targetEffect or {}) do
                         effect:SetClass('target-selected', false)
                     end
                 end

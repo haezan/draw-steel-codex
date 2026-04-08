@@ -464,6 +464,9 @@ CharacterModifier.TypeInfo.power = {
         end
 
         local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self.modtype]
+        if modType == nil then
+            return roll
+        end
         if modType.remove_edge or modType.ignore_edges then
             local m = regex.MatchGroups(roll, "^(?<prefix>.*?)(?<edge>\\d+)\\s+edge(?<suffix>.*)$")
             if m ~= nil then

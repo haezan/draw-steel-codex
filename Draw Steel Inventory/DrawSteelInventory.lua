@@ -555,7 +555,7 @@ local CreateInventorySlot = function(dmhud, options)
 
 
 				local quantity = tonumber(element.text)
-				if quantity ~= nil and token ~= nil and token.valid then
+				if quantity ~= nil and item ~= nil and token ~= nil and token.valid then
 					quantity = round(quantity)
 
 					--work out the new total quantity of this item

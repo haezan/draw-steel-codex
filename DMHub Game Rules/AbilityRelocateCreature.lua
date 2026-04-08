@@ -136,14 +136,20 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
 		if swapTokens ~= nil then
 			casterToken:SwapPositions(swapTokens[1])
-		elseif movementType == "teleport" then
+		elseif movementType == "teleport" or movementType == "relocate" then
             local distance = casterToken:Distance(targets[1].loc)
             if distance > 0 then
 			    options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + distance
             end
 
+            if movementType == "relocate" then
+                casterToken.properties._tmp_suppressTeleportEvent = true
+            end
+
             local loc = targets[1].loc
         	casterToken:Teleport(loc.withGroundAltitude)
+
+            casterToken.properties._tmp_suppressTeleportEvent = nil
         elseif movementType == "jump" then
             print("JUMP:: TARGET =", targets[1].loc.floor)
 		    local path = casterToken:Move(targets[#targets].loc, { ignoreFalling = true, straightline = true, moveThroughFriends = true, ignorecreatures = true, maxCost = 30000, movementType = "jump" })
@@ -465,6 +471,7 @@ function ActivatedAbilityRelocateCreatureBehavior:EditorItems(parentPanel)
 			classes = "formDropdown",
 			options = {
 				{id = "teleport", text = "Teleport"},
+				{id = "relocate", text = "Relocate"},
 				{id = "move", text = "Move"},
 				{id = "shift", text = "Shift"},
 				{id = "jump", text = "Jump"},

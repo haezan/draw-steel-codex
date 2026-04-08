@@ -2145,7 +2145,7 @@ DockablePanel = {
 
 
 	FindInstance = function(identifier)
-        if rawget(gamehud,"leftDock") == nil then
+        if gamehud == nil or rawget(gamehud,"leftDock") == nil then
             return nil
         end
 		for _,dock in ipairs({gamehud.leftDock, gamehud.rightDock, gamehud.floatingDock}) do

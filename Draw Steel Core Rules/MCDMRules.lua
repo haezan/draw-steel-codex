@@ -1484,6 +1484,23 @@ TriggeredAbility.RegisterTrigger{
     }
 }
 
+TriggeredAbility.RegisterTrigger{
+    id = "fallenon",
+    text = "A Creature Lands on You From a Fall",
+    symbols = {
+        {
+            name = "speed",
+            type = "number",
+            desc = "The distance of the fall in squares.",
+        },
+        {
+            name = "fallingcreature",
+            type = "creature",
+            desc = "The creature that fell on this creature.",
+        },
+    }
+}
+
 --redefine hitpoints as stamina.
 CustomAttribute.RegisterAttribute{ id = "hitpoints", text = "Stamina", attributeType = "number", category = "Basic Attributes"}
 CustomAttribute.DeregisterAttribute("armorClass")

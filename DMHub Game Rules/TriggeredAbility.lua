@@ -399,6 +399,23 @@ TriggeredAbility.triggers = {
 	{
 		id = "fall",
 		text = "Land from a fall",
+		symbols = {
+			speed = {
+				name = "Speed",
+				type = "number",
+				desc = "The distance of the fall in squares.",
+			},
+			landedoncreature = {
+				name = "Landed on Creature",
+				type = "boolean",
+				desc = "True if the falling creature landed on top of another creature.",
+			},
+			landedoncreatures = {
+				name = "Landed on Creatures",
+				type = "creaturelist",
+				desc = "The creatures that were landed on.",
+			},
+		},
 	},
     {
         id = "pressureplate",

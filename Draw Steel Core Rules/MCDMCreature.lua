@@ -2813,7 +2813,6 @@ creature.RegisterSymbol {
 function creature:InflictCondition(conditionid, args)
     local immunities = self:GetConditionImmunities()
 
-    print("INFLICT:: CONDITION", conditionid, "VS IMMUNITIES", immunities)
     --this creature is immune to the condition.
     if immunities[conditionid] and (not args.purge) then
         return

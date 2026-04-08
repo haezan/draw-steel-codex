@@ -62,6 +62,7 @@ GoblinScriptDebug = {
     OverrideFormula = function(formula, fn, lua)
         GoblinScriptDebug.formulaOverrides[formula] = lua
         g_compiled[formula] = fn
+        print("GoblinScript:: Override:", formula, "with", lua, type(fn))
     end,
 }
 
