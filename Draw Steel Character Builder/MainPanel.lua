@@ -156,6 +156,7 @@ function CharacterBuilder.CreatePanel()
                     suppressRow1 = true,
                     displayName = "Complication",
                 }
+                featureCache:TransferUISelections(state:Get(SEL.COMPLICATION .. ".featureCache"))
                 state:Set{ key = SEL.COMPLICATION .. ".featureCache", value = featureCache }
                 state:Set{ key = SEL.COMPLICATION .. ".selectionStatus", value = selectionStatus }
             else
@@ -181,6 +182,7 @@ function CharacterBuilder.CreatePanel()
                     end
                 end
                 local featureCache = CBFeatureCache.CreateNew(hero, SEL.TITLE, "Title", features)
+                featureCache:TransferUISelections(state:Get(SEL.TITLE .. ".featureCache"))
                 local selectionStatus = CBSelectionStatus.CreateNew{
                     featureCache = featureCache,
                     selectorName = SEL.TITLE,
@@ -215,6 +217,7 @@ function CharacterBuilder.CreatePanel()
                     cultureFeatures = table.append_arrays(cultureAggregates, cultureFeatures)
                 end
                 local featureCache = CBFeatureCache.CreateNew(hero, SEL.CULTURE, "Culture", cultureFeatures)
+                featureCache:TransferUISelections(element.data.state:Get(SEL.CULTURE .. ".featureCache"))
                 local selectionStatus = CBSelectionStatus.CreateNew{
                     featureCache = featureCache,
                     selectorName = SEL.CULTURE,
@@ -308,7 +311,7 @@ function CharacterBuilder.CreatePanel()
 
             local cachedTokenId = state:Get("tokenId")
             local token = info and info.token or _getToken()
-            if token then
+            if token ~= nil then
                 if cachedTokenId ~= token.id then
                     element.data.state = CharacterBuilderState.CreateNew()
                     state = element.data.state
@@ -325,7 +328,7 @@ function CharacterBuilder.CreatePanel()
                         hero[CharacterDescription.CHARACTER_KEY] = CharacterDescription.new{}
                     end
 
-                    element:FireEvent("selectAncestry", hero:try_get("raceid"))
+                    element:FireEvent("selectAncestry", hero:try_get("raceid", state:Get(SEL.ANCESTRY .. ".selectedId")))
 
                     element:FireEvent("cacheComplication", hero)
 
@@ -337,11 +340,11 @@ function CharacterBuilder.CreatePanel()
 
                     local careerItem = hero:Background()
                     local careerId = careerItem and careerItem.id
-                    element:FireEvent("selectCareer", careerId)
+                    element:FireEvent("selectCareer", careerId or state:Get(SEL.CAREER .. ".selectedId"))
 
                     local classItem = hero:GetClass()
                     local classId = classItem and classItem.id
-                    element:FireEvent("selectClass", classId)
+                    element:FireEvent("selectClass", classId or state:Get(SEL.CLASS .. ".selectedId"))
 
                     local kitCache = state:Get(SEL.KIT .. ".featureCache")
                     if kitCache then
@@ -621,6 +624,7 @@ function CharacterBuilder.CreatePanel()
                         { feature = kitFeature }
                     }
                     local kitFeatureCache = CBFeatureCache.CreateNew(hero, classItem.id, classItem.name, features)
+                    kitFeatureCache:TransferUISelections(state:Get(SEL.KIT .. ".featureCache"))
                     local kitSelectionStatus = CBSelectionStatus.CreateNew{
                         featureCache = kitFeatureCache,
                         selectorName = SEL.KIT,

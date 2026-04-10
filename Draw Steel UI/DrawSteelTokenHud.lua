@@ -271,8 +271,20 @@ TokenHud.RegisterPanel{
                             m_minionDeathPanel = gui.Panel{
                                 styles = g_deadMinionIconStyles,
                                 click = function(element)
+                                    local attacker = token.properties:try_get("_tmp_lastattacker")
+                                    local victim = token.properties
+
                                     token.properties:TriggerEvent("creaturedeath", {}) --this triggers the 'monster death' global event which will remove the minion.
                                     token.properties:MinionDeath()
+
+                                    if attacker ~= nil then
+                                        attacker:TriggerEvent("kill", {
+                                            victim = victim,
+                                            hasattacker = true,
+                                            attacker = attacker,
+                                        })
+                                    end
+
                                     if token.playerControlled then
                                         game.DeleteCharacters{token.charid}
                                     end

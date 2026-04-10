@@ -139,6 +139,23 @@ function CBFeatureCache:GetStatusSummary(hero)
     return self:try_get("numSelected", 0), self:try_get("numAvailable", 0)
 end
 
+--- Transfer UI-only selection state from an old cache to this one.
+--- Preserves currentOptionId across cache rebuilds for features
+--- that exist in both caches (matched by GUID).
+--- @param oldCache CBFeatureCache|nil
+function CBFeatureCache:TransferUISelections(oldCache)
+    if oldCache == nil then return end
+    for guid, feature in pairs(self.keyed) do
+        local oldFeature = oldCache:GetFeature(guid)
+        if oldFeature then
+            local optionId = oldFeature:GetSelectedOptionId()
+            if optionId then
+                feature:SetSelectedOption(optionId)
+            end
+        end
+    end
+end
+
 --- @param guid string
 --- @return boolean|nil isComplete Whether that specific feature is complete or nil if we don't know about the feature
 function CBFeatureCache:IsFeatureComplete(guid)
