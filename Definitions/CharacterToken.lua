@@ -361,11 +361,12 @@ function CharacterToken:ShowSheet(tabid)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetLineOfSight: The vision of the other token you have. 1 = full vision. 0 = complete occlusion. 0.5 = half visible. Optionally pass pierceSurfaces to ignore thin walls.
+--- GetLineOfSight: The vision of the other token you have. 1 = full vision. 0 = complete occlusion. 0.5 = half visible, 0.25 = three-quarters cover. Optionally pass pierceSurfaces to ignore thin walls. The mode argument is "full" (default) to use the full token-aware targeting calculation that samples multiple rays across token footprints, or "basic" to cast a single center-to-center ray (faster but less accurate for large tokens or intervening creatures).
 --- @param otherToken any
 --- @param pierceSurfacesArg any?
+--- @param modeArg any?
 --- @return number
-function CharacterToken:GetLineOfSight(otherToken, pierceSurfacesArg)
+function CharacterToken:GetLineOfSight(otherToken, pierceSurfacesArg, modeArg)
 	-- dummy implementation for documentation purposes only
 end
 

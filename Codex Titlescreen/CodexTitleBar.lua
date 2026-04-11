@@ -182,6 +182,13 @@ local function CreatePresentationBar()
     return resultPanel
 end
 
+local g_showStatusBarSetting = setting{
+    id = "showstatusbar",
+    default = true,
+    storage = "preference",
+    section = "General",
+}
+
 local function CreateStatusBar()
     local resultPanel
 
@@ -191,14 +198,36 @@ local function CreateStatusBar()
         width = 600,
         halign = "right",
 
+        rightClick = function(element)
+            local menuItems = {
+                {
+                    text = "Show Status Bar",
+                    check = g_showStatusBarSetting:Get(),
+                    click = function()
+                        g_showStatusBarSetting:Set(not g_showStatusBarSetting:Get())
+                        element.popup = nil
+                    end,
+                },
+            }
+
+            element.popup = gui.ContextMenu{
+                entries = menuItems,
+            }
+        end,
+
         gui.Label{
             fontSize = 14,
             minFontSize = 10,
-            width = 100,
+            width = 160,
             height = "100%",
             color = "#aaaaaa",
             text = "Ready",
-            thinkTime = 0.01,
+            multimonitor = {"showstatusbar"},
+            monitor = function(element)
+                element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.01, nil)
+                element.text = ""
+            end,
+            thinkTime = cond(g_showStatusBarSetting:Get(), 0.01, nil),
             think = function(element)
                 if (not dmhub.inGame) or dmhub.isLobbyGame then
                     element.text = ""
@@ -214,10 +243,73 @@ local function CreateStatusBar()
                 end
 
                 if writeCount > 0 then
-                    element.text = string.format("%s (%d)", text, writeCount)
+                    text = string.format("%s (%d)", text, writeCount)
+                end
+
+                local seq = dmhub.durableObjectSeq
+                if seq and seq > 0 then
+                    element.text = string.format("%s  seq:%d", text, seq)
                 else
                     element.text = text
                 end
+            end,
+            click = function(element)
+                local history = dmhub:GetDurableObjectSeqHistory() or {}
+                local lines = {}
+                if #history == 0 then
+                    lines[1] = "(no seq-tagged messages received yet)"
+                else
+                    for i = #history, 1, -1 do
+                        lines[#lines+1] = history[i]
+                    end
+                end
+
+                gamehud:ModalDialog{
+                    title = string.format("DO Message History (latest seq: %d)", dmhub.durableObjectSeq or 0),
+                    width = 600,
+                    height = 500,
+                    flow = "vertical",
+                    halign = "center",
+                    valign = "top",
+                    gui.Label{
+                        width = "95%",
+                        height = "auto",
+                        halign = "center",
+                        valign = "top",
+                        fontSize = 14,
+                        color = "white",
+                        text = "Most recent at top. Inbound lines start with a seq number;\noutbound lines to the game store start with '>>'. Acks include\nthe round-trip time in milliseconds.",
+                        vmargin = 4,
+                    },
+                    gui.Panel{
+                        width = "95%",
+                        height = "100%-80",
+                        halign = "center",
+                        flow = "vertical",
+                        vscroll = true,
+                        styles = {
+                            {
+                                selectors = {"label"},
+                                width = "100%",
+                                height = "auto",
+                                fontSize = 14,
+                                color = "#dddddd",
+                                halign = "left",
+                                vmargin = 1,
+                            },
+                        },
+                        children = (function()
+                            local result = {}
+                            for _, line in ipairs(lines) do
+                                result[#result+1] = gui.Label{ text = line }
+                            end
+                            return result
+                        end)(),
+                    },
+                    buttons = {
+                        { text = "Close", escapeActivates = true },
+                    },
+                }
             end,
         },
 
@@ -228,7 +320,12 @@ local function CreateStatusBar()
             height = "100%",
             color = "#aaaaaa",
             text = "",
-            thinkTime = 0.1,
+            multimonitor = {"showstatusbar"},
+            monitor = function(element)
+                element.thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil)
+                element.text = ""
+            end,
+            thinkTime = cond(g_showStatusBarSetting:Get(), 0.1, nil),
             think = function(element)
                 if (not dmhub.inGame) or dmhub.isLobbyGame then
                     element.text = ""

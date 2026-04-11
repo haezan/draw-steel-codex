@@ -15,6 +15,13 @@ function lobby:EnterLobbyGame(callback)
 	-- dummy implementation for documentation purposes only
 end
 
+--- MigrateGameToDurableObjects: Migrate an existing Firebase-backed game to Cloudflare Durable Objects. Options table can contain 'progress' (function called with status and progress 0-1) and 'complete' (function called with success bool and optional error string).
+--- @param gameid string The id of the game to migrate.
+--- @param options table Options with optional 'progress' and 'complete' callback fields.
+function lobby:MigrateGameToDurableObjects(gameid, options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- CreateGame: Creates a new game with the given options table. The options table may contain 'create' and 'error' callback functions. Rate-limited to one creation every 3 seconds.
 --- @param options table Options with optional 'create' and 'error' callback fields.
 function lobby:CreateGame(options)

@@ -95,6 +95,7 @@
 --- @field connectionErrorStatus any The current connection error status, if any. Used to display connection issues to the user.
 --- @field writeErrors any A list of failed and unconfirmed write receipts that haven't been acknowledged. Each entry is a WriteReceipt with path, method, failureReason, isFailed, isUnconfirmed, and acknowledged fields.
 --- @field pendingWriteCount number The number of writes currently pending (in-flight to the cloud).
+--- @field durableObjectSeq number Latest sequence number stamped by the Durable Object game server on inbound messages. The DO resets this counter to 0 on every cold start/hibernation wake. Returns 0 if the current game is not DO-backed or no seq has been received yet.
 --- @field patronTier number The Patreon tier level of the current user. 0 means not a patron.
 --- @field subscriptionTier number The subscription tier level of the current user. 0 means no subscription.
 --- @field isAdminAccount boolean True if the current user has admin privileges on their account.
@@ -1018,9 +1019,28 @@ function dmhub.Redo()
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetDurableObjectSeqHistory: Returns a Lua array of the last ~20 inbound Durable Object messages that carried a seq field, oldest first. Each entry is a pre-formatted string like '42 put game/characters/abc' or '42 ack ok w-001'.
+--- @return string[]
+function dmhub:GetDurableObjectSeqHistory()
+	-- dummy implementation for documentation purposes only
+end
+
 --- AcknowledgeAllWriteErrors: Acknowledges all current write errors so they are no longer returned by writeErrors.
 --- @return nil
 function dmhub:AcknowledgeAllWriteErrors()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetRichPresenceActivity: Sets a short-lived rich-presence activity string (e.g. 'Building Orc Fury') that is pushed to both Steam and Discord. Pass nil or an empty string to clear. The activity auto-expires a few seconds after the last call, so panels should re-push from a think handler while open.
+--- @param status string
+--- @return nil
+function dmhub:SetRichPresenceActivity(status)
+	-- dummy implementation for documentation purposes only
+end
+
+--- DumpSteamRichPresence: Logs what Steam currently has stored for the local user's rich presence, for debugging. Echoes back each key we sent plus the full server-side key list.
+--- @return nil
+function dmhub:DumpSteamRichPresence()
 	-- dummy implementation for documentation purposes only
 end
 

@@ -288,6 +288,38 @@ function CharacterBuilder.CreatePanel()
                 element:FireEvent("refreshToken")
             end
             element:FireEvent("ensureActiveState")
+            element:FireEvent("pushRichPresence")
+        end,
+
+        -- Re-push the Steam rich-presence activity every couple of seconds
+        -- while the builder is open. The engine-side driver auto-expires the
+        -- activity a few seconds after the last push, so we don't need a
+        -- matching destroy hook -- closing the panel just stops the pushes.
+        thinkTime = 2,
+        think = function(element)
+            element:FireEvent("pushRichPresence")
+        end,
+
+        pushRichPresence = function(element)
+            local state = element.data.state
+            local ancestryItem = state and state:Get(SEL.ANCESTRY .. ".selectedItem")
+            local classItem = state and state:Get(SEL.CLASS .. ".selectedItem")
+
+            local ancestryName = ancestryItem and ancestryItem:try_get("name")
+            local className = classItem and classItem:try_get("name")
+
+            local status
+            if ancestryName and className then
+                status = string.format("Building %s %s", ancestryName, className)
+            elseif ancestryName then
+                status = string.format("Building %s Hero", ancestryName)
+            elseif className then
+                status = string.format("Building %s", className)
+            else
+                status = "Building a Hero"
+            end
+
+            dmhub:SetRichPresenceActivity(status)
         end,
 
         ensureActiveSelector = function(element)
@@ -306,7 +338,7 @@ function CharacterBuilder.CreatePanel()
         end,
 
         refreshToken = function(element, info)
-            -- print("THC:: MAIN:: REFRESHTOKEN::", os.date("%Y-%m-%d %H:%M:%S"))
+            print("THC:: MAIN:: REFRESHTOKEN::", os.date("%Y-%m-%d %H:%M:%S"))
             local state = element.data.state
 
             local cachedTokenId = state:Get("tokenId")

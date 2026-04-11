@@ -952,6 +952,108 @@ local function CreateGameEditor(options)
                 },
 
                 gui.Button {
+                    text = "Migrate to Durable Objects",
+                    halign = "left",
+                    valign = "bottom",
+                    fontSize = 16,
+                    height = 32,
+                    width = 220,
+                    -- Only visible to dev users on Firebase-backed games
+                    hidden = (not dmhub.GetSettingValue("dev")) or (m_game.storage ~= 0),
+                    press = function(element)
+                        local migrateButton = element
+                        local statusLabel
+                        local modal
+                        modal = gui.Panel {
+                            classes = { "framedPanel" },
+                            floating = true,
+                            width = 600,
+                            height = 240,
+                            halign = "center",
+                            valign = "center",
+                            bgimage = true,
+                            flow = "vertical",
+                            styles = {
+                                Styles.Default,
+                                Styles.Panel,
+                            },
+
+                            gui.Label {
+                                text = "Migrating to Durable Objects",
+                                width = "auto",
+                                height = "auto",
+                                halign = "center",
+                                fontSize = 24,
+                                valign = "top",
+                                vmargin = 12,
+                            },
+
+                            gui.Label {
+                                id = "migrationStatus",
+                                text = "Starting...",
+                                width = "auto",
+                                height = "auto",
+                                halign = "center",
+                                valign = "center",
+                                fontSize = 16,
+                                create = function(element)
+                                    statusLabel = element
+                                end,
+                            },
+
+                            gui.Panel {
+                                halign = "center",
+                                valign = "bottom",
+                                vmargin = 16,
+                                width = "auto",
+                                height = "auto",
+                                gui.Button {
+                                    id = "closeMigrationBtn",
+                                    text = "Close",
+                                    fontSize = 16,
+                                    width = 120,
+                                    height = 32,
+                                    halign = "center",
+                                    interactable = false,
+                                    click = function(element)
+                                        modal:DestroySelf()
+                                        resultPanel:DestroySelf()
+                                    end,
+                                },
+                            },
+                        }
+
+                        element.root:AddChild(modal)
+
+                        -- Disable the migrate button while running
+                        migrateButton.interactable = false
+
+                        lobby:MigrateGameToDurableObjects(m_game.gameid, {
+                            progress = function(status, pct)
+                                if statusLabel ~= nil and statusLabel.valid then
+                                    statusLabel.text = string.format("%s (%d%%)", status, math.floor(pct * 100))
+                                end
+                            end,
+                            complete = function(success, err)
+                                if statusLabel ~= nil and statusLabel.valid then
+                                    if success then
+                                        statusLabel.text = "Migration complete!"
+                                        statusLabel.color = "#88ff88"
+                                    else
+                                        statusLabel.text = string.format("Migration failed: %s", err or "unknown")
+                                        statusLabel.color = "#ff8888"
+                                    end
+                                end
+                                local closeBtn = modal:Get("closeMigrationBtn")
+                                if closeBtn ~= nil then
+                                    closeBtn.interactable = true
+                                end
+                            end,
+                        })
+                    end,
+                },
+
+                gui.Button {
                     text = "Delete Game",
                     halign = "right",
                     valign = "bottom",
@@ -1742,11 +1844,6 @@ function CreateGameDialog()
                 vmargin = 4,
                 hidden = not dmhub.GetSettingValue("dev"),
 
-                create = function(element)
-                    -- For dev users, default to durableobjects in the dialog state
-                    resultPanel.data.backend = "durableobjects"
-                end,
-
                 gui.Label {
                     text = "Storage Backend:",
                     width = "auto",
@@ -1762,6 +1859,12 @@ function CreateGameDialog()
                     valign = "center",
                     options = { { id = "durableobjects", text = "Durable Objects" }, { id = "firebase", text = "Firebase" } },
                     idChosen = "durableobjects",
+                    create = function(element)
+                        -- Only dev users see this dropdown; default their selection to DO
+                        if dmhub.GetSettingValue("dev") then
+                            resultPanel.data.backend = "durableobjects"
+                        end
+                    end,
                     change = function(element)
                         resultPanel.data.backend = element.idChosen
                     end,

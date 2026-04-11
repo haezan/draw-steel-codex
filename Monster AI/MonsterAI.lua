@@ -851,7 +851,7 @@ function MonsterAI:Analysis()
         for _,tok in ipairs(tokens) do
             local monsterType = tok.properties:try_get("monster_type", nil)
             local initiativeid = InitiativeQueue.GetInitiativeId(tok)
-            if initiativeid ~= nil and queue.entries[initiativeid] ~= nil and (not queue:IsEntryPlayer(initiativeid)) and (not monstersSeen[monsterType]) then
+            if monsterType ~= nil and initiativeid ~= nil and queue.entries[initiativeid] ~= nil and (not queue:IsEntryPlayer(initiativeid)) and (not monstersSeen[monsterType]) then
                 monstersSeen[monsterType] = true
 
                 local languageid = tok.properties:CurrentlySpokenLanguage()

@@ -10114,7 +10114,7 @@ function creature:IsValid()
         return false
     end
 
-    if getmetatable(self.culture) == nil then
+    if getmetatable(self.culture) == nil and rawget(self, "culture") ~= nil then
         printf("Creature validation: culture is invalid")
         return false
     end
@@ -10222,7 +10222,7 @@ function creature:Repair(localOnly)
 
     if self.typeName == "character" and (rawget(self, "characterDescription") == nil or self.characterDescription.typeName == nil) then
         self.characterDescription = CharacterDescription.new{}
-        printf("Creature validation: characterDescription missing %s, resetting. localOnly = %s new type =", charid, tostring(localOnly), self.characterDescription.typeName)
+        printf("Creature validation: characterDescription missing %s, resetting. localOnly = %s new type = %s", charid, tostring(localOnly), self.characterDescription.typeName)
     end
 
     --reset culture.
@@ -10279,15 +10279,16 @@ function creature:Repair(localOnly)
 
 	deleteList = {}
 
-	for i,resistanceEntry in ipairs(self:try_get("resistances", {})) do
+	for i,resistanceEntry in ipairs(table.shallow_copy(self:try_get("resistances", {}))) do
 		if getmetatable(resistanceEntry) == nil then
 			if type(resistanceEntry) == "table" then
 				printf("Creature validation: repair resistance for %s by adding ResistanceEntry for character %s", json(resistanceEntry), charid)
 				self.resistances[i] = ResistanceEntry.new(resistanceEntry)
 			else
 				--unrecognized resistances, just dump them.
-				printf("Creature validation: invalid resistances for %s, puring them.", charid)
+				printf("Creature validation: invalid resistances for %s, purging them.", charid)
 				self.resistances = {}
+                break
 			end
 		end
 	end
@@ -10330,7 +10331,7 @@ function creature:Repair(localOnly)
 	end
 
 	for _,itemid in ipairs(deleteList) do
-		printf("Creature validation: remove character %s itemid %s due to corrupt entry.", charid, k)
+		printf("Creature validation: remove character %s itemid %s due to corrupt entry.", charid, itemid)
 		self.inventory[itemid] = nil
 	end
 
