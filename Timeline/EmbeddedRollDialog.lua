@@ -2050,12 +2050,13 @@ function GameHud.CreateEmbeddedRollDialog()
             {
                 selectors = { "tokenContainer" },
                 bgimage = "panels/square.png",
-                bgcolor = "#00000000",
+                bgcolor = "clear",
             },
             {
                 selectors = { "tokenContainer", "selected" },
                 bgimage = "panels/square.png",
-                bgcolor = "#ffffff18",
+                borderWidth = 1,
+                borderColor = "black",
             },
             {
                 selectors = { "tokenContainer", "hover" },
@@ -2073,6 +2074,22 @@ function GameHud.CreateEmbeddedRollDialog()
                 selectors = { "icon", "activated" },
                 bgcolor = "white",
             },
+
+            {
+                selectors = {"label"},
+                priority = 5,
+                color = "black",
+            },
+            {
+                selectors = {"label","rolling"},
+                priority = 5,
+                color = Styles.textColor,
+            },
+            {
+                selectors = {"label","finishedRolling"},
+                priority = 5,
+                color = Styles.textColor,
+            },
         },
         width = "auto",
         height = "auto",
@@ -2081,6 +2098,7 @@ function GameHud.CreateEmbeddedRollDialog()
         vscroll = true,
         halign = "center",
         valign = "top",
+        bmargin = 4,
         flow = "horizontal",
         wrap = true,
         prepare = function(element, options)
@@ -2098,7 +2116,6 @@ function GameHud.CreateEmbeddedRollDialog()
                     fontSize = 12,
                     minFontSize = 8,
                     bold = true,
-                    color = Styles.textColor,
                     width = "95%",
                     height = "auto",
                     maxHeight = 30,
@@ -2109,7 +2126,6 @@ function GameHud.CreateEmbeddedRollDialog()
                 }
                 local boonLabel = gui.Label {
                     fontSize = 10,
-                    color = cond(target.text == nil, Styles.textColor, "#9999ffff"),
                     width = "95%",
                     height = "auto",
                     halign = "center",
@@ -2184,7 +2200,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
                         for k, _ in pairs(maintargetModifiers) do
                             if multitargetModifiers[k] == nil then
-                                text = text .. " <s><color=#BBBBBB>" .. k .. "</color></s>"
+                                text = text .. " <s>" .. k .. "</s>"
                             end
                         end
 
@@ -2233,7 +2249,9 @@ function GameHud.CreateEmbeddedRollDialog()
                 local tokenPanel = gui.Panel {
                     classes = { "tokenContainer", "hideWhenMinimized", cond(targetCreature == target.token.properties, "selected") },
                     width = 80,
-                    height = 80,
+                    minHeight = 80,
+                    maxHeight = 120,
+                    height = "auto",
                     flow = "vertical",
                     halign = "center",
 
@@ -2261,6 +2279,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         gui.CreateTokenImage(target.token, {
                             halign = "center",
                             valign = "top",
+                            tmargin = 4,
                             width = 48,
                             height = 48,
                             bgcolor = "white",

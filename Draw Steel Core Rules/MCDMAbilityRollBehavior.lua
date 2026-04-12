@@ -894,6 +894,33 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         end
     end
 
+    --For minion squad signature abilities, extra minions from the squad may be
+    --attacking specific targets (assigned via options.symbols.targetPairs). The
+    --consolidated power roll should pick up any power-roll modifiers those
+    --other minions would grant against their assigned target (e.g. a Flanking
+    --edge when a different minion in the pair is the one actually flanking).
+    --Build a lookup from each non-instigator attacker's charid to its active
+    --modifier list so CalculateMultitargets can evaluate them per-target.
+    local attackerModifierInfo = nil
+    if rollType == "ability_power_roll"
+        and caster.minion
+        and ability.categorization == "Signature Ability"
+        and caster:has_key("_tmp_minionSquad")
+        and options.symbols ~= nil
+        and options.symbols.targetPairs ~= nil then
+        attackerModifierInfo = {}
+        local squad = caster._tmp_minionSquad
+        for _, tok in ipairs(squad.tokens or {}) do
+            if tok ~= nil and tok.valid and tok.charid ~= casterToken.charid then
+                attackerModifierInfo[tok.charid] = {
+                    token = tok,
+                    creature = tok.properties,
+                    modifiers = tok.properties:GetActiveModifiers(),
+                }
+            end
+        end
+    end
+
     local multitargetsByTokenId = {}
 
     local multitargets = {}
@@ -939,22 +966,67 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
             local candidateModifiers = {}
 
-            --the attacker's modifiers.
-            for _,mod in ipairs(modifiersOnCaster) do
-                local m = mod.mod:DescribeModifyPowerRoll(mod, caster, rollType, {ability = ability, caster = caster, target = targetCreature, symbols = options.symbols, attribute = self:try_get("attrid"), skills = {self:try_get("skillid")}})
-                if m ~= nil then
-                    if options.symbols ~= nil then
-                        m.modifier:InstallSymbolsFromContext(options.symbols)
+            --Attackers whose modifiers should be evaluated against this target.
+            --The instigating caster is always first (and carries the ability-
+            --inherent modifiers added to modifiersOnCaster above). For minion
+            --squad signatures with targetPairs, any other squad minion assigned
+            --to this target also contributes its own power-roll modifiers so
+            --things like Flanking apply when a non-instigator is the one
+            --actually flanking.
+            local attackerEvalList = {
+                {creature = caster, modifiers = modifiersOnCaster},
+            }
+            if attackerModifierInfo ~= nil then
+                for _, pair in ipairs(options.symbols.targetPairs) do
+                    if pair.b == target.token.charid and pair.a ~= casterToken.charid then
+                        local info = attackerModifierInfo[pair.a]
+                        if info ~= nil then
+                            attackerEvalList[#attackerEvalList+1] = {
+                                creature = info.creature,
+                                modifiers = info.modifiers,
+                            }
+                        end
                     end
+                end
+            end
 
-                    m.hint = m.modifier:HintModifyPowerRolls(mod, caster, rollType, {
-                        ability = ability,
-                        target = targetCreature,
-                        attribute = self:try_get("attrid"),
-                        skills = {self:try_get("skillid")}
-                    })
-                    if m.hint ~= nil then
-                        candidateModifiers[#candidateModifiers+1] = m
+            --Dedupe by source modifier guid so global rule mods present on
+            --every squad minion (e.g. the Flanking global rule) only show up
+            --once in the dialog even though each attacker carries a copy. If
+            --an earlier attacker's copy evaluated to hint.result == false but
+            --a later attacker's copy evaluates to true (because that attacker
+            --is the one actually flanking), replace the entry so the edge
+            --applies.
+            local indexByGuid = {}
+            for _, attackerCtx in ipairs(attackerEvalList) do
+                local attackerCreature = attackerCtx.creature
+                for _,mod in ipairs(attackerCtx.modifiers) do
+                    local m = mod.mod:DescribeModifyPowerRoll(mod, attackerCreature, rollType, {ability = ability, caster = attackerCreature, target = targetCreature, symbols = options.symbols, attribute = self:try_get("attrid"), skills = {self:try_get("skillid")}})
+                    if m ~= nil then
+                        if options.symbols ~= nil then
+                            m.modifier:InstallSymbolsFromContext(options.symbols)
+                        end
+
+                        m.hint = m.modifier:HintModifyPowerRolls(mod, attackerCreature, rollType, {
+                            ability = ability,
+                            target = targetCreature,
+                            attribute = self:try_get("attrid"),
+                            skills = {self:try_get("skillid")}
+                        })
+                        if m.hint ~= nil then
+                            local guid = m.modifier:try_get("guid")
+                            if guid == nil then
+                                candidateModifiers[#candidateModifiers+1] = m
+                            elseif indexByGuid[guid] == nil then
+                                candidateModifiers[#candidateModifiers+1] = m
+                                indexByGuid[guid] = #candidateModifiers
+                            else
+                                local existing = candidateModifiers[indexByGuid[guid]]
+                                if (existing.hint == nil or not existing.hint.result) and m.hint.result then
+                                    candidateModifiers[indexByGuid[guid]] = m
+                                end
+                            end
+                        end
                     end
                 end
             end
