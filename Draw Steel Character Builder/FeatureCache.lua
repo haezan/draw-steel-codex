@@ -69,27 +69,37 @@ function CBFeatureCache:CalculateStatus()
     for _,item in ipairs(self:GetSortedFeatures()) do
         local feature = self:GetFeature(item.guid)
         if not feature:SuppressStatus() then
-            local key = feature:GetCategoryOrder()
-            if statusEntries[key] == nil then
-                statusEntries[key] = {
-                    id = feature:GetCategory(),
-                    order = key,
-                    available = 0,
-                    selected = 0,
-                    selectedDetail = {},
-                }
-            end
-            local statusEntry = statusEntries[key]
             local featureStatus = feature:GetStatus()
-            statusEntry.available = statusEntry.available + featureStatus.numChoices
-            statusEntry.selected = statusEntry.selected + featureStatus.selected
+            local excludeFromTotals = featureStatus.excludeFromTotals == true
+            local skip = excludeFromTotals
+                and featureStatus.numChoices == 0
+                and featureStatus.selected == 0
+            if not skip then
+                local key = feature:GetCategoryOrder()
+                if statusEntries[key] == nil then
+                    statusEntries[key] = {
+                        id = feature:GetCategory(),
+                        order = key,
+                        available = 0,
+                        selected = 0,
+                        selectedDetail = {},
+                    }
+                end
+                local statusEntry = statusEntries[key]
+                statusEntry.available = statusEntry.available + featureStatus.numChoices
+                statusEntry.selected = statusEntry.selected + featureStatus.selected
 
-            numSelected = numSelected + featureStatus.selected
-            numAvailable = numAvailable + featureStatus.numChoices
+                if excludeFromTotals then
+                    statusEntry.excludeFromTotals = true
+                else
+                    numSelected = numSelected + featureStatus.selected
+                    numAvailable = numAvailable + featureStatus.numChoices
+                end
 
-            local selectedNames = featureStatus.selectedNames
-            table.move(selectedNames, 1, #selectedNames, #statusEntry.selectedDetail + 1, statusEntry.selectedDetail)
-            table.sort(statusEntry.selectedDetail)
+                local selectedNames = featureStatus.selectedNames
+                table.move(selectedNames, 1, #selectedNames, #statusEntry.selectedDetail + 1, statusEntry.selectedDetail)
+                table.sort(statusEntry.selectedDetail)
+            end
         end
     end
 
