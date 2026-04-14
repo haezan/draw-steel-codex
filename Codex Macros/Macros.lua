@@ -1105,20 +1105,27 @@ Commands.RegisterMacro{
 Commands.RegisterMacro{
     name = "spawn",
     summary = "spawn a character",
-    doc = "Usage: /spawn <token name> <x> <y>\nSpawns any character(s) to given location.",
+    doc = "Usage: /spawn <token name> <x> <y> [floor]\nSpawns any character(s) to given location. Floor defaults to the current floor if omitted.",
     completions = tokenSearchCompletions,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local tokenName = args[1]
         local x = tonum(args[2])
         local y = tonum(args[3])
+        local floorIndex = tonum(args[4])
 
         local characters = game.GetGameGlobalCharacters()
 
         local tokens = tokenSearch(tokenName, table.values(characters))
 
         for _, token in pairs(tokens) do
-            token:ChangeLocation(core.Loc { x = x, y = y })
+            local loc
+            if floorIndex ~= nil then
+                loc = core.Loc { x = x, y = y, floorIndex = floorIndex }
+            else
+                loc = core.Loc { x = x, y = y }
+            end
+            token:ChangeLocation(loc)
         end
     end,
 }
