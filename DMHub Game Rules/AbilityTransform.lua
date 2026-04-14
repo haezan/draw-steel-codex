@@ -240,6 +240,11 @@ function ActivatedAbilityTransformBehavior:ShowTransformChoiceDialog(choices, di
 
     local resultPanel = gui.Panel{
         flow = "vertical",
+        draggable = true,
+        drag = function(element)
+            element.x = element.xdrag
+            element.y = element.ydrag
+        end,
         bgimage = "panels/square.png",
         bgcolor = "#040807",
         border = 1,
