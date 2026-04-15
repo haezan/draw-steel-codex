@@ -1223,6 +1223,76 @@ function RunMigrateToDOModal(root, game)
     })
 end
 
+-- Show a modal dialog that runs MigrateGameToStagingDurableObjects for the
+-- given game and reports progress. Used by the dev/admin context menu on
+-- the game card. Unlike RunCloneToStagingModal, this migrates the existing
+-- game (same gameid) to staging rather than creating a new copy.
+function RunMigrateToStagingModal(root, game)
+    local statusLabel
+    local modal
+    modal = gui.Panel {
+        classes = { "framedPanel" },
+        floating = true,
+        width = 600,
+        height = 240,
+        halign = "center",
+        valign = "center",
+        bgimage = true,
+        flow = "vertical",
+        styles = { Styles.Default, Styles.Panel },
+
+        gui.Label {
+            text = "Migrating to Staging DO",
+            width = "auto", height = "auto",
+            halign = "center", valign = "top",
+            fontSize = 24, vmargin = 12,
+        },
+
+        gui.Label {
+            id = "migrationStatus",
+            text = "Starting...",
+            width = "auto", height = "auto",
+            halign = "center", valign = "center",
+            fontSize = 16,
+            create = function(element) statusLabel = element end,
+        },
+
+        gui.Panel {
+            halign = "center", valign = "bottom", vmargin = 16,
+            width = "auto", height = "auto",
+            gui.Button {
+                id = "closeMigrationBtn",
+                text = "Close",
+                fontSize = 16, width = 120, height = 32,
+                halign = "center", interactable = false,
+                click = function(element) modal:DestroySelf() end,
+            },
+        },
+    }
+    root:AddChild(modal)
+
+    lobby:MigrateGameToStagingDurableObjects(game.gameid, {
+        progress = function(status, pct)
+            if statusLabel ~= nil and statusLabel.valid then
+                statusLabel.text = string.format("%s (%d%%)", status, math.floor(pct * 100))
+            end
+        end,
+        complete = function(success, err)
+            if statusLabel ~= nil and statusLabel.valid then
+                if success then
+                    statusLabel.text = "Migration to staging complete!"
+                    statusLabel.color = "#88ff88"
+                else
+                    statusLabel.text = string.format("Migration failed: %s", err or "unknown")
+                    statusLabel.color = "#ff8888"
+                end
+            end
+            local closeBtn = modal:Get("closeMigrationBtn")
+            if closeBtn ~= nil then closeBtn.interactable = true end
+        end,
+    })
+end
+
 -- Show a modal dialog that runs CloneFirebaseGameToStagingDO for the given
 -- game and reports progress. Used by both the game-details panel button
 -- and the dev/admin context menu on the game card.
@@ -1371,6 +1441,12 @@ local function MakeGamePanel(gameIndex)
                     text = "Clone to Staging DO",
                     click = function()
                         RunCloneToStagingModal(element.root, m_game)
+                    end,
+                })
+                table.insert(entries, {
+                    text = "Migrate to Staging DO",
+                    click = function()
+                        RunMigrateToStagingModal(element.root, m_game)
                     end,
                 })
                 table.insert(entries, {
@@ -2292,7 +2368,7 @@ function CreateGameDialog()
                 click = function(element)
                     -- Default to firebase for non-dev users; dev users get whatever
                     -- they selected in the dropdown (which defaults to durableobjects).
-                    local backend = resultPanel.data and resultPanel.data.backend or "firebase"
+                    local backend = resultPanel.data and resultPanel.data.backend or "durableobjects"
                     local loadingScreen = CreateGameLoadingScreen(GetModule(), backend)
                     element.root:AddChild(loadingScreen)
                     resultPanel:DestroySelf()
