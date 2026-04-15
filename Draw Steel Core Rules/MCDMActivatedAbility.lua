@@ -482,6 +482,36 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
     end,
 })
 
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "Characteristics",
+    type = "set",
+    desc = "Returns the characteristics of this ability.",
+    examples = { 'Ability.Characteristics has "Might"', 'Ability.Characteristics has "Highest"' },
+    calculate = function(c)
+        local result = {}
+        for _, behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+                local roll = behavior:try_get("roll", "")
+                if roll ~= "" then
+                    local rollLower = string.lower(roll)
+                    for desc, id in pairs(creature.descriptionToAttribute) do
+                        if string.find(rollLower, string.lower(desc)) then
+                            result[#result+1] = desc
+                        end
+                    end
+                    if string.find(rollLower, "highest characteristic") then
+                        result[#result+1] = "Highest"
+                    end
+                end
+            end
+        end
+
+        return StringSet.new{
+            strings = result,
+        }
+    end,
+})
+
 function ActivatedAbility:HasAttack()
     return self:HasKeyword("Strike")
 end
