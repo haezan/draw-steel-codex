@@ -177,6 +177,98 @@ CharacterModifier.TypeInfo.movementtext = {
     end,
 }
 
+CharacterModifier.RegisterType('movementrestriction', "Movement Restriction")
+
+CharacterModifier.TypeInfo.movementrestriction = {
+    init = function(modifier)
+        modifier.targetFormula = ""
+    end,
+
+    GetMovementRestrictionFilter = function(modifier, cre, token)
+        local formula = modifier:try_get("targetFormula", "")
+        if formula == "" then return nil end
+
+        local targetCreature = ExecuteGoblinScript(
+            formula,
+            cre:LookupSymbol(modifier:try_get("_tmp_symbols", {})),
+            nil,
+            "movement restriction target")
+        if targetCreature == nil then return nil end
+
+        local targetToken = dmhub.LookupToken(targetCreature)
+        if targetToken == nil or not targetToken.valid then return nil end
+
+        local distanceNow = targetToken:Distance(token.loc)
+
+        return function(loc)
+            return targetToken:Distance(loc) >= distanceNow
+        end
+    end,
+
+    createEditor = function(modifier, element)
+        local Refresh
+        local firstRefresh = true
+
+        Refresh = function()
+            if firstRefresh then
+                firstRefresh = false
+            else
+                element:FireEvent("refreshModifier")
+            end
+
+            local children = {}
+            children[#children+1] = modifier:FilterConditionEditor()
+
+            children[#children+1] = gui.Panel{
+                classes = {'formPanel'},
+                children = {
+                    gui.Label{
+                        text = 'Cannot Move Toward:',
+                        classes = {'formLabel'},
+                    },
+                    gui.GoblinScriptInput{
+                        classes = {'formInput'},
+                        value = modifier:try_get("targetFormula", ""),
+                        change = function(self)
+                            modifier.targetFormula = self.value
+                            Refresh()
+                        end,
+                        documentation = {
+                            output = "creature",
+                            help = "The creature that the affected creature cannot willingly move closer to.",
+                        },
+                    },
+                },
+            }
+
+            element.children = children
+        end
+
+        Refresh()
+    end,
+}
+
+function creature:GetMovementRestrictionFilter(token)
+    local mods = self:GetActiveModifiers()
+    local filters = {}
+    for _, mod in ipairs(mods) do
+        local typeInfo = CharacterModifier.TypeInfo[mod.mod.behavior]
+        if typeInfo ~= nil and typeInfo.GetMovementRestrictionFilter ~= nil then
+            local f = typeInfo.GetMovementRestrictionFilter(mod.mod, self, token)
+            if f ~= nil then
+                filters[#filters+1] = f
+            end
+        end
+    end
+    if #filters == 0 then return nil end
+    return function(loc)
+        for _, f in ipairs(filters) do
+            if not f(loc) then return false end
+        end
+        return true
+    end
+end
+
 function CharacterModifier:MovementAdvisoryText(creature, path, text)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
 	if typeInfo.MovementAdvisoryText ~= nil then
