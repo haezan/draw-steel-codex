@@ -547,6 +547,17 @@ function CreateSettingsScreen(dialog, args)
                                     dmhub.SetSettingValue("vsync", 1)
                                     dmhub.SetSettingValue("fps", 60)
                                 end
+
+                                -- On Mac retina displays, default hidef off unless the
+                                -- system is clearly powerful. Apple Silicon always
+                                -- registers as integrated in systemPower, so use a more
+                                -- permissive threshold than the main systemPower < 1 gate.
+                                local pixelCount = dmhub.screenDimensions.x * dmhub.screenDimensions.y
+                                if dmhub.platform == "macOS" and pixelCount > 3000000 and systemPower < 1.2 then
+                                    dmhub.SetSettingValue("hidef", false)
+                                else
+                                    dmhub.SetSettingValue("hidef", true)
+                                end
                             end,
                         },
 					},

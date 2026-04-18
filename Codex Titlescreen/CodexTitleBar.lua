@@ -1,5 +1,11 @@
 local mod = dmhub.GetModLoading()
 
+local g_devInventorySetting = setting{
+    id = "devinventory",
+    default = false,
+    storage = "preference",
+}
+
 local function CreateCodexMenuItem(args)
     local iconPanel
 
@@ -894,7 +900,7 @@ local function CreateTopBar()
             icon = "ui-icons/codex-logo.png",
             mainmenu = true,
             menuItems = function()
-			    return {
+                local items = {
                     {
                         text = "Settings",
                         icon = "panels/hud/gear.png",
@@ -902,7 +908,10 @@ local function CreateTopBar()
                             dmhub.ShowPlayerSettings()
                         end,
                     },
-                    {
+                }
+
+                if g_devInventorySetting:Get() then
+                    items[#items+1] = {
                         text = "Shop",
                         icon = "icons/icon_shopping/shopping-cart.png",
                         click = function()
@@ -910,8 +919,8 @@ local function CreateTopBar()
                                 CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot })
                             end
                         end,
-                    },
-                    {
+                    }
+                    items[#items+1] = {
                         text = "Inventory",
                         icon = "ui-icons/gift-icon.png",
                         click = function()
@@ -919,15 +928,18 @@ local function CreateTopBar()
                                 CodexTitlescreenRoot:AddChild(CreateShopScreen{ titlescreen = CodexTitlescreenRoot, inventory = true })
                             end
                         end,
-                    },
-                    {
-                        text = "Quit to Desktop",
-                        icon = "game-icons/power-button.png",
-                        click = function()
-                            dmhub.QuitApplication()
-                        end,
-                    },
+                    }
+                end
+
+                items[#items+1] = {
+                    text = "Quit to Desktop",
+                    icon = "game-icons/power-button.png",
+                    click = function()
+                        dmhub.QuitApplication()
+                    end,
                 }
+
+                return items
             end,
         },
 

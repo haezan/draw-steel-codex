@@ -78,6 +78,16 @@ if not g_setRecommendedGraphics:Get() then
         dmhub.SetSettingValue("fps", 60)
     end
 
+    -- On Mac retina displays, default hidef off unless the system is clearly
+    -- powerful. Apple Silicon always registers as integrated in systemPower,
+    -- so use a more permissive threshold than the main systemPower < 1 gate.
+    local pixelCount = dmhub.screenDimensions.x * dmhub.screenDimensions.y
+    if dmhub.platform == "macOS" and pixelCount > 3000000 and systemPower < 1.2 then
+        dmhub.SetSettingValue("hidef", false)
+    else
+        dmhub.SetSettingValue("hidef", true)
+    end
+
 end
 
 local g_directorGamePageSetting = setting {
@@ -831,87 +841,193 @@ local function CreateGameEditor(options)
                 },
             },
 
+            -- Local games don't have a shareable invite code -- they live on
+            -- a server process tied to this user's machine. Show "Offline
+            -- Game" + a Deploy Online button in place of the copy-the-code
+            -- panel. The deploy button kicks off the same local->DO promote
+            -- flow the titlescreen's Invite Players button uses.
             gui.Label {
                 tmargin = 8,
-                text = "Invite Code:",
+                text = cond(m_game.storage == 3, "Offline Game", "Invite Code:"),
             },
 
-            gui.Panel {
-                styles = {
-                    {
-                        selectors = { "infoPanel" },
-                        bgimage = "panels/square.png",
-                        bgcolor = "clear",
-                        height = 60,
-                        borderColor = Styles.textColor,
-                        borderWidth = 2,
-                        cornerRadius = 8,
-                        beveledcorners = true,
-                    },
-                    {
-                        selectors = { "infoPanel", "selectable", "hover" },
-                        transitionTime = 0.2,
-                        brightness = 1.5,
-                    },
-                    {
-                        selectors = { "infoLabel" },
-                        fontSize = 32,
-                        minFontSize = 12,
-                        textAlignment = "right",
-                        hmargin = 24,
-                        halign = "right",
-                        valign = "center",
-                        width = "60%",
+            -- Lua `and`/`or` short-circuits, so only the chosen branch's
+            -- panel constructor actually runs here. Using cond() would
+            -- eagerly evaluate both and leak an unattached panel.
+            (m_game.storage == 3 and (
+                -- IIFE so the Deploy Online button can share locals with
+                -- its inline progress bar + status label for the promote
+                -- flow. Clicking the button hides it, reveals the progress
+                -- controls, and drives lobby:PromoteLocalGame. On success
+                -- the surrounding editor is destroyed and a fresh editor
+                -- for the newly-deployed online game replaces it, so the
+                -- settings dialog naturally refreshes to the cloud variant
+                -- (invite-code panel, etc.) without us having to shuffle
+                -- individual fields.
+                (function()
+                    local deployButton
+                    local progressLabel
+                    local progressBar
+                    local container
+
+                    local function startDeploy()
+                        deployButton:SetClass("hidden", true)
+                        progressLabel:SetClass("hidden", false)
+                        progressBar:SetClass("hidden", false)
+
+                        lobby:PromoteLocalGame {
+                            gameid = m_game.gameid,
+                            progress = function(status, pct)
+                                if container == nil or not container.valid then return end
+                                if progressLabel.valid then progressLabel.text = status end
+                                if progressBar.valid then progressBar:SetValue(pct or 0) end
+                            end,
+                            complete = function(success, newGameid, err)
+                                if container == nil or not container.valid then return end
+                                if success then
+                                    if progressLabel.valid then progressLabel.text = "Done! Opening deployed game..." end
+                                    if progressBar.valid then progressBar:SetValue(1) end
+                                    dmhub.Schedule(0.5, function()
+                                        if resultPanel == nil or not resultPanel.valid then return end
+                                        local newGame = nil
+                                        for _, g in ipairs(lobby.games or {}) do
+                                            if g.gameid == newGameid then
+                                                newGame = g
+                                                break
+                                            end
+                                        end
+                                        if newGame ~= nil then
+                                            resultPanel.root:AddChild(CreateGameEditor { game = newGame })
+                                        end
+                                        resultPanel:DestroySelf()
+                                    end)
+                                else
+                                    if progressLabel.valid then
+                                        progressLabel.text = "Deployment failed: " .. (err or "unknown error")
+                                        progressLabel.selfStyle.color = "red"
+                                    end
+                                    if progressBar.valid then progressBar:SetClass("hidden", true) end
+                                    if deployButton.valid then deployButton:SetClass("hidden", false) end
+                                end
+                            end,
+                        }
+                    end
+
+                    deployButton = gui.PrettyButton {
+                        text = "Deploy Online",
+                        width = 360,
+                        height = 36,
+                        fontSize = 18,
+                        halign = "center",
+                        click = function(element) startDeploy() end,
+                    }
+                    progressLabel = gui.Label {
+                        classes = { "hidden" },
+                        text = "Preparing...",
+                        fontSize = 14,
+                        halign = "center",
+                        textAlignment = "center",
+                        width = 360,
                         height = "auto",
+                        vmargin = 2,
+                    }
+                    progressBar = gui.ProgressBar {
+                        classes = { "hidden" },
+                        width = 360,
+                        height = 24,
+                        value = 0,
+                        halign = "center",
+                    }
+                    container = gui.Panel {
+                        width = 360,
+                        height = "auto",
+                        halign = "center",
+                        vmargin = 0,
+                        flow = "vertical",
+                        deployButton,
+                        progressLabel,
+                        progressBar,
+                    }
+                    return container
+                end)()
+            )) or (
+                gui.Panel {
+                    styles = {
+                        {
+                            selectors = { "infoPanel" },
+                            bgimage = "panels/square.png",
+                            bgcolor = "clear",
+                            height = 60,
+                            borderColor = Styles.textColor,
+                            borderWidth = 2,
+                            cornerRadius = 8,
+                            beveledcorners = true,
+                        },
+                        {
+                            selectors = { "infoPanel", "selectable", "hover" },
+                            transitionTime = 0.2,
+                            brightness = 1.5,
+                        },
+                        {
+                            selectors = { "infoLabel" },
+                            fontSize = 32,
+                            minFontSize = 12,
+                            textAlignment = "right",
+                            hmargin = 24,
+                            halign = "right",
+                            valign = "center",
+                            width = "60%",
+                            height = "auto",
+                        },
+                        {
+                            selectors = { "infoIcon" },
+                            height = "70%",
+                            width = "100% height",
+                            bgcolor = Styles.textColor,
+                            halign = "left",
+                            valign = "center",
+                            hmargin = 16,
+                        },
+                        {
+                            selectors = { "infoIcon", "parentSelectable", "parent:hover" },
+                            brightness = 1.5,
+                            transitionTime = 0.1,
+                        },
+
                     },
-                    {
-                        selectors = { "infoIcon" },
+
+
+                    classes = { "infoPanel", "selectable" },
+                    height = 30,
+                    width = "80%",
+                    halign = "center",
+                    vmargin = 0,
+                    click = function(element)
+                        local tooltip = gui.Tooltip { text = "Copied to Clipboard", valign = "top", borderWidth = 0 } (
+                            element)
+                        dmhub.CopyToClipboard(m_game.gameid)
+                    end,
+
+                    gui.Label {
+                        classes = { "infoLabel" },
+                        fontSize = 16,
+                        minFontSize = 16,
+                        width = "70%",
+                        textAlignment = "center",
+                        halign = "center",
+                        text = m_game.gameid,
+                    },
+
+                    gui.Panel {
+                        classes = { "infoIcon", "selectable", "parentSelectable" },
+                        halign = "right",
+                        bgimage = "icons/icon_app/icon_app_108.png",
+                        hmargin = 8,
                         height = "70%",
                         width = "100% height",
-                        bgcolor = Styles.textColor,
-                        halign = "left",
-                        valign = "center",
-                        hmargin = 16,
                     },
-                    {
-                        selectors = { "infoIcon", "parentSelectable", "parent:hover" },
-                        brightness = 1.5,
-                        transitionTime = 0.1,
-                    },
-
-                },
-
-
-                classes = { "infoPanel", "selectable" },
-                height = 30,
-                width = "80%",
-                halign = "center",
-                vmargin = 0,
-                click = function(element)
-                    local tooltip = gui.Tooltip { text = "Copied to Clipboard", valign = "top", borderWidth = 0 } (
-                        element)
-                    dmhub.CopyToClipboard(m_game.gameid)
-                end,
-
-                gui.Label {
-                    classes = { "infoLabel" },
-                    fontSize = 16,
-                    minFontSize = 16,
-                    width = "70%",
-                    textAlignment = "center",
-                    halign = "center",
-                    text = m_game.gameid,
-                },
-
-                gui.Panel {
-                    classes = { "infoIcon", "selectable", "parentSelectable" },
-                    halign = "right",
-                    bgimage = "icons/icon_app/icon_app_108.png",
-                    hmargin = 8,
-                    height = "70%",
-                    width = "100% height",
-                },
-            },
+                }
+            ),
 
             gui.Label {
                 classes = { "fieldLabel" },
@@ -1754,7 +1870,7 @@ local function MakeGamePanel(gameIndex)
                     height = 36,
                     fontSize = 18,
                     valign = "bottom",
-                    vmargin = 4,
+                    y = -24,
                     hmargin = 4,
                     refreshGames = function(element)
                         element:SetClass("hidden", m_game == nil or m_game.storage ~= 3)
@@ -2198,7 +2314,7 @@ function CreateGameLoadingScreen(moduleInfo, backend)
         descriptionDetails = moduleInfo.descriptionDetails,
         coverart = moduleInfo.coverart,
         startingModule = moduleInfo.id,
-        backend = backend or "durableobjects",
+        backend = backend or "local",
         create = function(gameid)
             if resultPanel == nil or not resultPanel.valid then
                 return
@@ -2282,7 +2398,7 @@ function CreateGameDialog()
                 fontSize = 20,
                 options = g_moduleOptions,
                 idChosen = m_moduleid,
-                change = function(element)
+                change = function(g_bugReportLink)
                     m_moduleid = element.idChosen
                     resultPanel:FireEventTree("refreshModule")
                 end,
@@ -2342,12 +2458,11 @@ function CreateGameDialog()
                     height = 28,
                     fontSize = 16,
                     valign = "center",
-                    options = { { id = "durableobjects", text = "Durable Objects" }, { id = "durableobjects-staging", text = "Durable Objects (Staging)" }, { id = "firebase", text = "Firebase" }, { id = "local", text = "Local" } },
-                    idChosen = "durableobjects",
+                    options = { { id = "local", text = "Local" }, { id = "durableobjects", text = "Durable Objects" }, { id = "durableobjects-staging", text = "Durable Objects (Staging)" }, { id = "firebase", text = "Firebase" } },
+                    idChosen = "local",
                     create = function(element)
-                        -- Only dev users see this dropdown; default their selection to DO
                         if dmhub.GetSettingValue("dev") then
-                            resultPanel.data.backend = "durableobjects"
+                            resultPanel.data.backend = "local"
                         end
                     end,
                     change = function(element)
@@ -2366,9 +2481,7 @@ function CreateGameDialog()
                 bold = true,
                 text = "Create Campaign",
                 click = function(element)
-                    -- Default to firebase for non-dev users; dev users get whatever
-                    -- they selected in the dropdown (which defaults to durableobjects).
-                    local backend = resultPanel.data and resultPanel.data.backend or "durableobjects"
+                    local backend = resultPanel.data and resultPanel.data.backend or "local"
                     local loadingScreen = CreateGameLoadingScreen(GetModule(), backend)
                     element.root:AddChild(loadingScreen)
                     resultPanel:DestroySelf()
@@ -2746,6 +2859,29 @@ local function MakeHeroPanel(heroIndex)
             if element:HasClass("nocharacter") then
                 CreateHero(element)
             end
+        end,
+
+        -- Dev/admin right-click menu: opens the live data debug console
+        -- focused on this character. Only shown for admins or when the
+        -- "dev" setting is on. The titlescreen gives no other way to
+        -- inspect the token data behind a character card, so this fills
+        -- the "(Debug) Open Token Data" gap that exists in-game.
+        rightClick = function(element)
+            if m_character == nil then return end
+            if not (dmhub.GetSettingValue("dev") or dmhub.isAdminAccount) then return end
+
+            element.popup = gui.ContextMenu {
+                width = 260,
+                entries = {
+                    {
+                        text = "Open Token Data",
+                        click = function()
+                            dmhub.OpenDebugConsole("/characters/" .. m_character.charid, "game")
+                        end,
+                    },
+                },
+                click = function() element.popup = nil end,
+            }
         end,
 
         hover = function(element)
@@ -4467,6 +4603,7 @@ function CreateTitlescreen(dialog, options)
     dialog.sheet = titlescreen
     titlescreen.data.dialog = dialog
     g_titlescreen = titlescreen
+    _G.CodexTitlescreenRoot = titlescreen
 end
 
 local ShowTermsOfService = function(titlescreen, args)

@@ -1086,6 +1086,14 @@ function dmhub.OpenURL(url)
 	-- dummy implementation for documentation purposes only
 end
 
+--- OpenDebugConsole: Open the live data debug console for the current game, optionally focused on a given data path and store. Admin/dev only; silently no-ops for non-admin users. For WebSocket backends (DO release/staging, Local) this opens /debug/{gameid}?path=...&store=...#token=JWT. For legacy Firebase-backed games it opens the Firebase console URL.
+--- @param path string|nil Optional path to focus on (e.g. "/characters/abc").
+--- @param store string|nil Optional store name (defaults to "game" when omitted).
+--- @return nil
+function dmhub.OpenDebugConsole(path, store)
+	-- dummy implementation for documentation purposes only
+end
+
 --- OverrideMouseCursor: Forces the mouse cursor to the given mouse cursor. Lasts for 'duration' time. You may call this again and again to refresh periodically.
 --- @param cursorid MouseCursor
 --- @param duration number
