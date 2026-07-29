@@ -18,8 +18,37 @@ ActivatedAbilityPlaySoundBehavior.soundEvent = "none"
 ActivatedAbilityPlaySoundBehavior.soundAsset = ""
 ActivatedAbilityPlaySoundBehavior.volume = 1
 ActivatedAbilityPlaySoundBehavior.delay = 0
+ActivatedAbilityPlaySoundBehavior.repeatCount = ""
+ActivatedAbilityPlaySoundBehavior.repeatInterval = 0.25
+
+--a runaway formula could otherwise schedule an unbounded number of sounds.
+local g_maxRepeats = 10
+
+--returns the number of times to play, or nil if the sound should not play at all.
+function ActivatedAbilityPlaySoundBehavior:GetRepeatCount(ability, casterToken, options)
+    if self.repeatCount == nil or self.repeatCount == "" then
+        return 1
+    end
+
+    local count = ExecuteGoblinScript(self.repeatCount, casterToken.properties:LookupSymbol(options.symbols), nil, string.format("Sound repeats for %s", ability.name))
+    if count == nil then
+        return nil
+    end
+
+    count = math.floor(count)
+    if count < 1 then
+        return nil
+    end
+
+    return math.min(count, g_maxRepeats)
+end
 
 function ActivatedAbilityPlaySoundBehavior:Cast(ability, casterToken, targets, options)
+    local repeats = self:GetRepeatCount(ability, casterToken, options)
+    if repeats == nil then
+        return
+    end
+
     if self.mode == "custom" then
         if self.soundAsset == nil or self.soundAsset == "" then
             return
@@ -37,13 +66,16 @@ function ActivatedAbilityPlaySoundBehavior:Cast(ability, casterToken, targets, o
             }
         end
 
-        if self.delay > 0 then
-            dmhub.Schedule(self.delay, function()
-                if mod.unloaded then return end
+        for i = 1, repeats do
+            local delay = self.delay + (i - 1)*self.repeatInterval
+            if delay > 0 then
+                dmhub.Schedule(delay, function()
+                    if mod.unloaded then return end
+                    Play()
+                end)
+            else
                 Play()
-            end)
-        else
-            Play()
+            end
         end
         return
     end
@@ -52,10 +84,12 @@ function ActivatedAbilityPlaySoundBehavior:Cast(ability, casterToken, targets, o
         return
     end
 
-    audio.DispatchSoundEvent(self.soundEvent, {
-        volume = self.volume,
-        delay = self.delay,
-    })
+    for i = 1, repeats do
+        audio.DispatchSoundEvent(self.soundEvent, {
+            volume = self.volume,
+            delay = self.delay + (i - 1)*self.repeatInterval,
+        })
+    end
 end
 
 function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
@@ -186,6 +220,65 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
                     self.delay = 0
                 end
                 element.text = tostring(self.delay)
+            end,
+        },
+    }
+
+    result[#result+1] = gui.Panel {
+        classes = { "formPanel" },
+        gui.Label {
+            classes = { "formLabel" },
+            text = "Repeat:",
+        },
+        gui.GoblinScriptInput {
+            classes = { "formInput" },
+            value = self.repeatCount,
+            change = function(element)
+                self.repeatCount = element.value
+            end,
+            documentation = {
+                help = "This GoblinScript determines how many times the sound is played. If left blank the sound plays once. If it evaluates to nothing, or to a number less than one, the sound is not played at all.",
+                output = "number",
+                subject = creature.helpSymbols,
+                subjectDescription = "The creature invoking the ability",
+                examples = {
+                    {
+                        script = "3",
+                        text = "Play the sound three times.",
+                    },
+                    {
+                        script = "Ability.Number of Targets",
+                        text = "Play the sound once for each creature the ability targets.",
+                    },
+                },
+                symbols = {
+                    ability = {
+                        name = "Ability",
+                        type = "ability",
+                        desc = "The ability that is playing this sound.",
+                    },
+                },
+            },
+        },
+    }
+
+    result[#result+1] = gui.Panel {
+        classes = { "formPanel" },
+        gui.Label {
+            classes = { "formLabel" },
+            text = "Repeat Interval (s):",
+        },
+        gui.Input {
+            classes = { "formInput" },
+            width = 100,
+            text = tostring(self.repeatInterval),
+            characterLimit = 16,
+            change = function(element)
+                self.repeatInterval = tonumber(element.text) or self.repeatInterval
+                if self.repeatInterval < 0 then
+                    self.repeatInterval = 0
+                end
+                element.text = tostring(self.repeatInterval)
             end,
         },
     }
