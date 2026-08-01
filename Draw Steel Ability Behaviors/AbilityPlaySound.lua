@@ -25,12 +25,31 @@ ActivatedAbilityPlaySoundBehavior.repeatInterval = 0.25
 local g_maxRepeats = 10
 
 --returns the number of times to play, or nil if the sound should not play at all.
-function ActivatedAbilityPlaySoundBehavior:GetRepeatCount(ability, casterToken, options)
+--ability/casterToken may be nil (e.g. previewing in the editor with no token
+--selected on the map). ExecuteGoblinScript doesn't require a real creature to
+--evaluate a plain number, so we still attempt it -- only formulas that
+--reference creature/ability symbols will fail to resolve without full context.
+function ActivatedAbilityPlaySoundBehavior:GetRepeatCount(ability, casterToken, symbols)
     if self.repeatCount == nil or self.repeatCount == "" then
         return 1
     end
 
-    local count = ExecuteGoblinScript(self.repeatCount, casterToken.properties:LookupSymbol(options.symbols), nil, string.format("Sound repeats for %s", ability.name))
+    symbols = symbols or {}
+    if ability ~= nil then
+        symbols.ability = symbols.ability or ability
+    end
+
+    local lookupSymbols = symbols
+    if casterToken ~= nil then
+        lookupSymbols = casterToken.properties:LookupSymbol(symbols)
+    end
+
+    local contextMessage = "Sound repeats"
+    if ability ~= nil then
+        contextMessage = string.format("Sound repeats for %s", ability.name)
+    end
+
+    local count = ExecuteGoblinScript(self.repeatCount, lookupSymbols, nil, contextMessage)
     if count == nil then
         return nil
     end
@@ -44,7 +63,10 @@ function ActivatedAbilityPlaySoundBehavior:GetRepeatCount(ability, casterToken, 
 end
 
 function ActivatedAbilityPlaySoundBehavior:Cast(ability, casterToken, targets, options)
-    local repeats = self:GetRepeatCount(ability, casterToken, options)
+    local repeats = self:GetRepeatCount(ability, casterToken, options.symbols)
+    print(string.format("PLAYSOUND_DEBUG Cast t=%.3f self=%s ability=%s asset=%s soundEvent=%s repeatCountField=%s repeats=%s castid=%s",
+        dmhub.Time(), tostring(self), ability and ability.name or "?", tostring(self.soundAsset), tostring(self.soundEvent),
+        tostring(self.repeatCount), tostring(repeats), options.symbols and options.symbols.castid or "?"))
     if repeats == nil then
         return
     end
@@ -59,11 +81,27 @@ function ActivatedAbilityPlaySoundBehavior:Cast(ability, casterToken, targets, o
             return
         end
 
-        local Play = function()
-            audio.PlaySoundEvent {
+        local Play = function(i)
+            --PlaySoundEvent keys its shared sync doc by the asset's own id, so a
+            --repeat play with byte-identical content just gets silently coalesced
+            --away as a no-op value "change" -- including a play from an unrelated
+            --concurrent cast of this same asset (e.g. an ability that fires twice
+            --per use, like the Akimbo kit). Explicitly stopping the old instance
+            --first works, but the abrupt cutoff itself produces an audible click.
+            --Nudging pitch by an inaudible, alternating amount instead forces a
+            --genuine value change each repeat, so the engine runs its own internal
+            --replace (delete-then-recreate) instead of us hard-interrupting it.
+            local playOptions = {
                 asset = asset,
                 volume = self.volume,
             }
+            if i > 1 then
+                --only nudge repeats -- the first play keeps its exact configured
+                --pitch untouched.
+                playOptions.pitch = (i % 2 == 0) and 1.001 or 0.999
+            end
+            print(string.format("PLAYSOUND_DEBUG Play t=%.3f self=%s asset=%s i=%d/%d pitch=%s", dmhub.Time(), tostring(self), tostring(self.soundAsset), i, repeats, tostring(playOptions.pitch)))
+            audio.PlaySoundEvent(playOptions)
         end
 
         for i = 1, repeats do
@@ -71,10 +109,10 @@ function ActivatedAbilityPlaySoundBehavior:Cast(ability, casterToken, targets, o
             if delay > 0 then
                 dmhub.Schedule(delay, function()
                     if mod.unloaded then return end
-                    Play()
+                    Play(i)
                 end)
             else
-                Play()
+                Play(i)
             end
         end
         return
@@ -228,7 +266,7 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
         classes = { "formPanel" },
         gui.Label {
             classes = { "formLabel" },
-            text = "Repeat:",
+            text = "Play Count:",
         },
         gui.GoblinScriptInput {
             classes = { "formInput" },
@@ -237,7 +275,7 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
                 self.repeatCount = element.value
             end,
             documentation = {
-                help = "This GoblinScript determines how many times the sound is played. If left blank the sound plays once. If it evaluates to nothing, or to a number less than one, the sound is not played at all.",
+                help = "This GoblinScript determines how many times the sound is played in total. If left blank the sound plays once. If it evaluates to nothing, or to a number less than one, the sound is not played at all.",
                 output = "number",
                 subject = creature.helpSymbols,
                 subjectDescription = "The creature invoking the ability",
@@ -288,6 +326,13 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
         width = 160,
         text = "Preview Sound",
         click = function(element)
+            local ability = parentPanel.data.parentAbility
+            local casterToken = dmhub.selectedTokens[1]
+            local repeats = self:GetRepeatCount(ability, casterToken, {})
+            if repeats == nil then
+                return
+            end
+
             if self.mode == "custom" then
                 if self.soundAsset == nil or self.soundAsset == "" then
                     return
@@ -296,9 +341,24 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
                 if asset == nil then
                     return
                 end
-                local instance = asset:Play()
-                if instance ~= nil then
-                    instance.volume = self.volume
+
+                local Play = function()
+                    local instance = asset:Play()
+                    if instance ~= nil then
+                        instance.volume = self.volume
+                    end
+                end
+
+                for i = 1, repeats do
+                    local delay = self.delay + (i - 1)*self.repeatInterval
+                    if delay > 0 then
+                        dmhub.Schedule(delay, function()
+                            if mod.unloaded then return end
+                            Play()
+                        end)
+                    else
+                        Play()
+                    end
                 end
                 return
             end
@@ -306,10 +366,13 @@ function ActivatedAbilityPlaySoundBehavior:EditorItems(parentPanel)
             if self.soundEvent == "none" then
                 return
             end
-            audio.FireSoundEvent(self.soundEvent, {
-                volume = self.volume,
-                delay = self.delay,
-            })
+
+            for i = 1, repeats do
+                audio.FireSoundEvent(self.soundEvent, {
+                    volume = self.volume,
+                    delay = self.delay + (i - 1)*self.repeatInterval,
+                })
+            end
         end,
     }
 
