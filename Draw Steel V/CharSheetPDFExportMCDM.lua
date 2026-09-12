@@ -452,8 +452,25 @@ local BaseFields = {
     ["Career Benefit"] = function(token, creature)
         return Join(FeatureNamesFromOrigin(creature, "background"), "\n")
     end,
-    --Career Inciting Incident: the incident is one of the career's choices; resolving
-    --the chosen option's display name is deferred to a follow-up.
+    --The incident is saved as a hero note, not a feature: CharacterIncidentChoice has an
+    --empty FillFeaturesRecursive, so it never reaches the feature list. Read the note back
+    --the way the builder does, minus the bold markers the roll-table rows carry.
+    ["Career Inciting Incident"] = function(token, creature)
+        local career = creature:Background()
+        if career == nil then
+            return nil
+        end
+
+        for _,characteristic in ipairs(career:try_get("characteristics", {})) do
+            for _,note in ipairs(creature:GetNotesForTable(characteristic.tableid) or {}) do
+                if note.text ~= nil and note.text ~= "" then
+                    return (string.gsub(note.text, "%*%*", ""))
+                end
+            end
+        end
+
+        return nil
+    end,
     ["Complication Name"] = function(token, creature)
         local complications = creature:Complications()
         if #complications == 0 then
