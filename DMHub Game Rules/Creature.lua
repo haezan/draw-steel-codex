@@ -6336,6 +6336,7 @@ function creature:CaptureTeleportOpportunityAttackers(originLoc)
                and p._tmp_grabbedby ~= ourCharid
                and p:CanUseTriggeredAbilities()
                and p:CanMakeOpportunityAttacks()
+               and p:CanOpportunityAttack(tok, ourToken)
                and tok.loc ~= nil
                and originLoc:DistanceInTiles(tok.loc) <= 1 then
                 result = result or {}
@@ -6365,7 +6366,7 @@ function creature:DispatchTeleportOpportunityAttacks(observers)
            and (not tok:IsFriend(self))
            and not tok.properties:HasBanesOnGenericFreeStrike(ourToken)
            and tok.properties:CanMakeOpportunityAttacks()
-           and tok.properties:TargetPassesFilter("opportunityattack", self) then
+           and tok.properties:CanOpportunityAttack(tok, ourToken) then
             tok.properties:DispatchEvent("leaveadjacent", { movingcreature = self })
         end
     end
@@ -6384,6 +6385,22 @@ end
 --or an opportunity-attack preview is being decided.
 function creature:CanMakeOpportunityAttacks()
     return self:CalculateNamedCustomAttribute("Cannot Make Opportunity Attacks") == 0
+end
+
+--- Whether this creature (the observer) may make an opportunity attack against the
+--- creature leaving its reach. Every gate asks this one question -- the stepped move
+--- path, teleports, and the HUD preview -- so they cannot drift apart. The base rule is
+--- just the "Can Opportunity Attack" filter; game systems override this to add their own
+--- requirements (Draw Steel adds line of effect).
+--- @param observerToken CharacterToken this creature's own token
+--- @param moverToken CharacterToken the creature leaving our reach
+--- @return boolean
+function creature:CanOpportunityAttack(observerToken, moverToken)
+    if moverToken == nil or moverToken.properties == nil then
+        return false
+    end
+
+    return self:TargetPassesFilter("opportunityattack", moverToken.properties)
 end
 
 CreatureFilter.Register{
@@ -6665,7 +6682,7 @@ function creature:OnMove(path)
                     local notImmuneForThisObserver = (not immuneFromOpportunityAttacks) or anyMovementObserver
                     local departureNotImmuneForThisObserver = (not immuneFromDeparture) or anyMovementObserver
 
-                    if withinVerticalReach and (not tok:IsFriend(self)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:TargetPassesFilter("opportunityattack", self) then
+                    if withinVerticalReach and (not tok:IsFriend(self)) and tok.properties._tmp_grabbedby ~= ourCharid and not tok.properties:HasBanesOnGenericFreeStrike(ourToken) and tok.properties:CanOpportunityAttack(tok, ourToken) then
                         if notImmuneForThisObserver and tok.properties:CanMakeOpportunityAttacks() then
                             tok.properties:DispatchEvent("leaveadjacent", MovementEventInfo{ movingcreature = self })
                             self._tmp_triggeredOpportunityAttacks = self._tmp_triggeredOpportunityAttacks + 1
