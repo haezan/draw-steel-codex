@@ -6,6 +6,8 @@ local mod = dmhub.GetModLoading()
 --  * Expanded  -- Expanded Character Sheet (Form Fillable).pdf   (core + list blocks)
 --  * Summoner  -- Summoner Character Sheet (Form Fillable).pdf   (expanded, class-matched)
 --  * Beastheart-- Beastheart Expanded Character Sheet (Form Fillable).pdf (expanded, class-matched)
+--These docNames track the asset descriptions installed today. draw-steel-data already
+--holds the renamed DS_CharacterSheet_* records; update them here once that import ships.
 --
 --Field names come from each PDF's AcroForm dictionary; use
 --CharSheetPDFExport.DumpFields("<templateid>") against the imported asset to audit them.
@@ -122,6 +124,41 @@ local function FeatureNamesFromOrigin(creature, originKey)
             end
         end
     end
+    return names
+end
+
+--Names of the perks a hero has taken. A perk is a level choice on a CharacterFeatChoice,
+--and that choice emits the perk's inner features but never the perk itself, so the name
+--has to be looked up from the choice guid. Mirrors the builder's cachePerks.
+local function PerkNames(creature)
+    local levelChoices = creature:GetLevelChoices() or {}
+    local featTable = dmhub.GetTable(CharacterFeat.tableName) or {}
+    local names = {}
+    local seen = {}
+
+    local function Add(featid)
+        local featInfo = featTable[featid]
+        if featInfo ~= nil and featInfo.name ~= nil and not seen[featInfo.name] then
+            seen[featInfo.name] = true
+            names[#names+1] = featInfo.name
+        end
+    end
+
+    for _,entry in ipairs(creature:GetClassFeaturesAndChoicesWithDetails()) do
+        local feature = entry.feature
+        if feature ~= nil and feature.typeName == "CharacterFeatChoice" then
+            for _,featid in ipairs(levelChoices[feature.guid] or {}) do
+                Add(featid)
+            end
+        end
+    end
+
+    --Heroes built before perks became level choices still store them in a flat array.
+    for _,featid in ipairs(creature:try_get("creatureFeats", {})) do
+        Add(featid)
+    end
+
+    table.sort(names)
     return names
 end
 
@@ -474,15 +511,7 @@ local BaseMulti = {
         fields["Titles 1"], fields["Titles 2"] = SplitIntoTwo(names, 120)
     end,
     function(token, creature, fields)
-        local names = {}
-        local featTable = dmhub.GetTable(CharacterFeat.tableName) or {}
-        for _,featid in ipairs(creature:try_get("creatureFeats", {})) do
-            local featInfo = featTable[featid]
-            if featInfo ~= nil then
-                names[#names+1] = featInfo.name
-            end
-        end
-        fields["Perks 1"], fields["Perks 2"] = SplitIntoTwo(names, 120)
+        fields["Perks 1"], fields["Perks 2"] = SplitIntoTwo(PerkNames(creature), 120)
     end,
 
     --Class features across the sheet's two Class Features boxes.
@@ -1097,6 +1126,19 @@ end
 
 local AbilityMulti = { MakeAbilityFiller(BaseAbilityLayout) }
 
+--The Simple sheet prints one "Ancestry Traits and Perks" box and backs it with only the
+--Perks widgets, so both lists have to share them. The expanded sheets carry the traits in
+--their own Traits List instead, so this runs after BaseMulti and only for Simple.
+local SimpleMulti = {
+    function(token, creature, fields)
+        local names = FeatureNamesFromOrigin(creature, "race")
+        for _,name in ipairs(PerkNames(creature)) do
+            names[#names+1] = name
+        end
+        fields["Perks 1"], fields["Perks 2"] = SplitIntoTwo(names, 120)
+    end,
+}
+
 --------------------------------------------------------------------------------
 -- Template registration
 --------------------------------------------------------------------------------
@@ -1108,7 +1150,7 @@ CharSheetPDFExport.RegisterTemplate{
     docName = "draw steel character sheet",
     fields = BaseFields,
     checks = BaseChecks,
-    multi = ConcatMulti(BaseMulti, AbilityMulti),
+    multi = ConcatMulti(BaseMulti, SimpleMulti, AbilityMulti),
 }
 
 CharSheetPDFExport.RegisterTemplate{

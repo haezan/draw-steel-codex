@@ -561,9 +561,9 @@ function CharSheetPDFExport.GetExportOptions(token)
     return options
 end
 
---The character sheet's corner button. Visible for any hero. Clicking offers the
---available PDF sheet variants (Expanded picks the Summoner/Beastheart layout for those
---classes) plus a Codex JSON download; a single option exports directly.
+--The character sheet's corner button. Visible for any hero. Clicking offers the available
+--PDF sheet variants (Expanded picks the Summoner/Beastheart layout) plus a Codex JSON
+--download. Always a menu: a lone entry means the sheet PDFs failed to resolve, not a shortcut.
 CharSheet.RegisterSheetAction{
     id = "pdfexport",
     --A pure-white icon mask so the theme tints it identically to the neighboring
@@ -594,11 +594,6 @@ CharSheet.RegisterSheetAction{
                     message = string.match(tostring(err), "[^\r\n]+") or "Unknown error.",
                 }
             end
-        end
-
-        if #options == 1 then
-            RunOption(options[1])
-            return
         end
 
         local entries = {}
