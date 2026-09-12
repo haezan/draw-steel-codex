@@ -1452,6 +1452,37 @@ function ActivatedAbility:ObjectGrantsTargeting(casterToken, targetToken, symbol
 	return GoblinScriptTrue(ExecuteGoblinScript(filter, props:LookupSymbol(filterSymbols), 0, string.format("Additional targeting filter for %s", self.name)))
 end
 
+--- Renders a reasoned filter's message for the tooltip on a greyed-out target. A filter
+--- added by a modifier (Modify Abilities -> Reasoned Filter) knows the name of the effect
+--- that added it, and that gets appended in brackets -- "No line of effect to this creature
+--- (Everything The Light Touches)." -- so the player can see what is stopping them. Filters
+--- authored on the ability itself carry no source and read exactly as written.
+--- @param reasonedFilter table
+--- @param symbols table
+--- @return string
+function ActivatedAbility.FormatFilterReason(reasonedFilter, symbols)
+	local reason = StringInterpolateGoblinScript(reasonedFilter.reason or "", symbols)
+
+	local sourceName = reasonedFilter.sourceName
+	if sourceName == nil or sourceName == "" or reason == "" then
+		return reason
+	end
+
+	--the author already named the effect in the text; don't say it twice.
+	if string.find(reason, sourceName, 1, true) ~= nil then
+		return reason
+	end
+
+	--keep the bracket inside the sentence rather than after the full stop.
+	local terminator = ""
+	if string.sub(reason, -1) == "." then
+		reason = string.sub(reason, 1, -2)
+		terminator = "."
+	end
+
+	return string.format("%s (%s)%s", reason, sourceName, terminator)
+end
+
 --- @param casterToken CharacterToken
 --- @param targetToken CharacterToken
 --- @param symbols table
@@ -1584,7 +1615,7 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
     for _,reasonedFilter in ipairs(reasonedFilters) do
         local result = GoblinScriptTrue(ExecuteGoblinScript(reasonedFilter.formula, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target reasoned filter for %s", self.name)))
         if not result then
-            return false, StringInterpolateGoblinScript(reasonedFilter.reason, symbols)
+            return false, ActivatedAbility.FormatFilterReason(reasonedFilter, symbols)
         end
     end
 
@@ -1629,7 +1660,7 @@ function ActivatedAbility:TargetPassesAuthoredFilters(casterToken, targetToken, 
 
 	for _,reasonedFilter in ipairs(reasonedFilters) do
 		if not GoblinScriptTrue(ExecuteGoblinScript(reasonedFilter.formula, targetToken.properties:LookupSymbol(symbols), 0, string.format("Target reasoned filter for %s", self.name))) then
-			return false, StringInterpolateGoblinScript(reasonedFilter.reason, symbols)
+			return false, ActivatedAbility.FormatFilterReason(reasonedFilter, symbols)
 		end
 	end
 
