@@ -2,12 +2,12 @@ local mod = dmhub.GetModLoading()
 
 --Field mappings for the official MCDM Draw Steel character sheet PDFs. Four sheets are
 --supported, all sharing a common core (BaseFields/BaseChecks/BaseMulti):
---  * Simple    -- DrawSteel_CharacterSheetBlank.pdf
---  * Expanded  -- Expanded Character Sheet (Form Fillable).pdf   (core + list blocks)
---  * Summoner  -- Summoner Character Sheet (Form Fillable).pdf   (expanded, class-matched)
---  * Beastheart-- Beastheart Expanded Character Sheet (Form Fillable).pdf (expanded, class-matched)
---These docNames track the asset descriptions installed today. draw-steel-data already
---holds the renamed DS_CharacterSheet_* records; update them here once that import ships.
+--  * Simple    -- DS_CharacterSheet_Standard
+--  * Expanded  -- DS_CharacterSheet_Expanded    (core + list blocks)
+--  * Summoner  -- DS_CharacterSheet_Summoner    (expanded, class-matched)
+--  * Beastheart-- DS_CharacterSheet_Beastheart  (expanded, class-matched)
+--These names come from draw-steel-data, which the editor loads as Local Assets. Retail
+--clients only see them once that module is redeployed, so ship the two together.
 --
 --Field names come from each PDF's AcroForm dictionary; use
 --CharSheetPDFExport.DumpFields("<templateid>") against the imported asset to audit them.
@@ -1147,7 +1147,7 @@ CharSheetPDFExport.RegisterTemplate{
     id = "mcdm-hero-sheet",
     name = "Simple Sheet",
     variant = "simple",
-    docName = "draw steel character sheet",
+    docName = "DS_CharacterSheet_Standard",
     fields = BaseFields,
     checks = BaseChecks,
     multi = ConcatMulti(BaseMulti, SimpleMulti, AbilityMulti),
@@ -1157,7 +1157,7 @@ CharSheetPDFExport.RegisterTemplate{
     id = "mcdm-hero-sheet-expanded",
     name = "Expanded Sheet",
     variant = "expanded",
-    docName = "expanded character sheet",
+    docName = "DS_CharacterSheet_Expanded",
     fields = BaseFields,
     checks = BaseChecks,
     multi = ConcatMulti(BaseMulti, ExpandedMulti, AbilityMulti),
@@ -1168,7 +1168,7 @@ CharSheetPDFExport.RegisterTemplate{
     name = "Summoner Sheet",
     variant = "expanded",
     classMatch = "Summoner",
-    docName = "summoner character sheet",
+    docName = "DS_CharacterSheet_Summoner",
     fields = MergeFields(BaseFields, SummonerFields),
     checks = BaseChecks,
     multi = ConcatMulti(BaseMulti, ExpandedMulti, AbilityMulti),
@@ -1179,7 +1179,7 @@ CharSheetPDFExport.RegisterTemplate{
     name = "Beastheart Sheet",
     variant = "expanded",
     classMatch = "Beastheart",
-    docName = "beastheart expanded character sheet",
+    docName = "DS_CharacterSheet_Beastheart",
     fields = MergeFields(BaseFields, BeastheartFields),
     checks = MergeFields(BaseChecks, BeastheartChecks),
     multi = ConcatMulti(BaseMulti, ExpandedMulti, BeastheartMulti, AbilityMulti),
