@@ -945,6 +945,173 @@ local g_heightSetting = setting{
     default = "",
 }
 
+local g_cursorSetting = setting{
+    id = "recorder:cursor",
+    description = "Game Recorder: draw mouse cursor in capture",
+    storage = "preference",
+    default = true,
+}
+
+-- Optional local PNG to draw as the cursor instead of the built-in arrow, e.g.
+-- a 32x32 capture of the Codex's own cursor (Lua cannot load the engine's
+-- cursor art). Local to this machine; blank or unloadable = built-in arrow.
+local g_cursorImageSetting = setting{
+    id = "recorder:cursorImage",
+    description = "Game Recorder: custom cursor image path (blank = built-in arrow)",
+    storage = "preference",
+    default = "",
+}
+
+-- Where the custom image's tip is, in image pixels. Defaults match the Codex
+-- arrow capture.
+local g_cursorTipXSetting = setting{
+    id = "recorder:cursorTipX",
+    description = "Game Recorder: custom cursor tip x (image pixels)",
+    storage = "preference",
+    default = "10",
+}
+
+local g_cursorTipYSetting = setting{
+    id = "recorder:cursorTipY",
+    description = "Game Recorder: custom cursor tip y (image pixels)",
+    storage = "preference",
+    default = "3",
+}
+
+-- The OS draws the mouse cursor on top of the app's rendered frames, so the
+-- recorder never sees it. While recording, we draw our own arrow in the UI
+-- layer instead. It only shows up in the video when 'Include UI' is on.
+local g_cursorOverlay = nil
+
+-- Cursor images are 32x32 like a standard Windows cursor. They are drawn
+-- CURSOR_ENLARGE times that in screen pixels, whatever the UI scale, so the
+-- cursor stands out a little more in videos than the real one does on screen.
+local CURSOR_PIXELS = 32
+local CURSOR_ENLARGE = 1.5
+
+-- Tip of the built-in phosphor arrow, in pixels of a 32x32 image.
+local BUILTIN_CURSOR_TIP = 5
+
+-- Returns an image id for the custom cursor, or nil to use the built-in arrow.
+local function LoadCustomCursorImage()
+    local path = g_cursorImageSetting:Get()
+    if type(path) ~= "string" or path == "" then
+        return nil
+    end
+    local img = assets:LoadImageOrVideoFileLocally(path)
+    if img == nil or img.error ~= nil then
+        return nil
+    end
+    return img.image
+end
+
+local function ShowRecordingCursor()
+    if g_cursorOverlay ~= nil and g_cursorOverlay.valid then
+        return
+    end
+    if gamehud == nil or gamehud.parentPanel == nil then
+        return
+    end
+
+    local customImage = LoadCustomCursorImage()
+    local tipX = BUILTIN_CURSOR_TIP
+    local tipY = BUILTIN_CURSOR_TIP
+    local layers
+    if customImage ~= nil then
+        tipX = tonumber(g_cursorTipXSetting:Get()) or 0
+        tipY = tonumber(g_cursorTipYSetting:Get()) or 0
+        layers = {
+            gui.Panel{
+                interactable = false,
+                floating = true,
+                width = "100%",
+                height = "100%",
+                bgimage = customImage,
+                bgcolor = "white",
+            },
+        }
+    else
+        -- White fill with a black outline so it reads on light and dark maps.
+        layers = {
+            gui.Panel{
+                interactable = false,
+                floating = true,
+                width = "100%",
+                height = "100%",
+                bgimage = "phosphor/cursor-fill.png",
+                bgcolor = "white",
+            },
+            gui.Panel{
+                interactable = false,
+                floating = true,
+                width = "100%",
+                height = "100%",
+                bgimage = "phosphor/cursor.png",
+                bgcolor = "black",
+            },
+        }
+    end
+
+    local arrow = gui.Panel{
+        interactable = false,
+        floating = true,
+        -- Draws above every other layer, including modals and popups.
+        renderOnTop = true,
+        halign = "left",
+        valign = "top",
+        width = CURSOR_PIXELS,
+        height = CURSOR_PIXELS,
+        children = layers,
+    }
+
+    local startTime = dmhub.Time()
+    local seenRecording = false
+    local lastScale = nil
+
+    g_cursorOverlay = gui.Panel{
+        width = "100%",
+        height = "100%",
+        halign = "left",
+        valign = "top",
+        floating = true,
+        interactable = false,
+        thinkTime = 0.01,
+        think = function(element)
+            -- Remove ourselves once the recording ends, however it ends. The
+            -- 5s grace covers the recorder taking a moment to report it started.
+            if recorder.recording then
+                seenRecording = true
+            end
+            if mod.unloaded or (not recorder.recording and (seenRecording or dmhub.Time() - startTime > 5)) then
+                g_cursorOverlay = nil
+                element:DestroySelf()
+                return
+            end
+
+            -- mousePoint is 0..1 across this full-screen panel, with y
+            -- counting up from the bottom, or nil when the mouse is outside.
+            local mp = element.mousePoint
+            local inside = mp ~= nil and mp.x >= 0 and mp.x <= 1 and mp.y >= 0 and mp.y <= 1
+            arrow:SetClass("hidden", not inside)
+            if inside then
+                -- UI units per cursor-image pixel: 0.75 UI units per screen
+                -- pixel at 133% UI scale, times the enlargement.
+                local scale = element.renderedWidth / dmhub.screenDimensions.x * CURSOR_ENLARGE
+                if scale ~= lastScale then
+                    lastScale = scale
+                    arrow.selfStyle.width = CURSOR_PIXELS * scale
+                    arrow.selfStyle.height = CURSOR_PIXELS * scale
+                end
+                arrow.x = mp.x * element.renderedWidth - tipX * scale
+                arrow.y = (1 - mp.y) * element.renderedHeight - tipY * scale
+            end
+        end,
+        arrow,
+    }
+
+    gamehud.parentPanel:AddChild(g_cursorOverlay)
+end
+
 local CreateGameRecorderPanel
 
 DockablePanel.Register{
@@ -1031,6 +1198,9 @@ CreateGameRecorderPanel = function()
         m_recordingWithUI = g_includeUISetting:Get()
         m_startTime = os.time()
         recorder:BeginRecording(BuildOptions())
+        if m_recordingWithUI and g_cursorSetting:Get() then
+            ShowRecordingCursor()
+        end
     end
 
     local function StopAndSave()
@@ -1208,6 +1378,7 @@ CreateGameRecorderPanel = function()
             },
             ToggleRow("Include UI", g_includeUISetting),
             ToggleRow("Record audio", g_audioSetting),
+            ToggleRow("Show mouse cursor (needs Include UI)", g_cursorSetting),
         }
     end
 
@@ -1400,6 +1571,80 @@ CreateGameRecorderPanel = function()
             }
         end
 
+        -- Picks the local PNG drawn as the recorded cursor; shows its file name.
+        local function CursorImageRow()
+            local nameLabel
+            local function Refresh()
+                local path = g_cursorImageSetting:Get()
+                if path == nil or path == "" then
+                    nameLabel.text = "built-in arrow"
+                else
+                    nameLabel.text = string.match(path, "[^/\\]*$") or path
+                end
+            end
+            nameLabel = gui.Label{
+                width = 110,
+                height = "auto",
+                halign = "left",
+                valign = "center",
+                fontSize = 12,
+                color = "#aaaaaa",
+                textWrap = false,
+                create = function(element)
+                    Refresh()
+                end,
+            }
+            return gui.Panel{
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                valign = "center",
+                vmargin = 2,
+                gui.Label{
+                    text = "Cursor",
+                    width = 70,
+                    height = "auto",
+                    halign = "left",
+                    valign = "center",
+                    fontSize = 13,
+                    color = "#cccccc",
+                },
+                nameLabel,
+                gui.Button{
+                    text = "Browse",
+                    width = 60,
+                    height = 20,
+                    fontSize = 11,
+                    hmargin = 2,
+                    valign = "center",
+                    click = function()
+                        dmhub.OpenFileDialog{
+                            id = "RecorderCursorImage",
+                            extensions = {"png"},
+                            prompt = "Choose a cursor image (32x32 PNG)",
+                            multiFiles = false,
+                            open = function(path)
+                                g_cursorImageSetting:Set(path)
+                                Refresh()
+                            end,
+                        }
+                    end,
+                },
+                gui.Button{
+                    text = "Clear",
+                    width = 50,
+                    height = 20,
+                    fontSize = 11,
+                    hmargin = 2,
+                    valign = "center",
+                    click = function()
+                        g_cursorImageSetting:Set("")
+                        Refresh()
+                    end,
+                },
+            }
+        end
+
         fieldsPanel = gui.Panel{
             classes = {"collapsed"},
             width = "100%",
@@ -1418,6 +1663,9 @@ CreateGameRecorderPanel = function()
             NumberInput("FPS", g_fpsSetting),
             NumberInput("Width", g_widthSetting),
             NumberInput("Height", g_heightSetting),
+            CursorImageRow(),
+            NumberInput("Tip X", g_cursorTipXSetting),
+            NumberInput("Tip Y", g_cursorTipYSetting),
         }
 
         return gui.Panel{
