@@ -8,7 +8,8 @@ local mod = dmhub.GetModLoading()
 --orange. While the collar is about to go off (the creature is at 0 Stamina, or a minion whose
 --death has been confirmed) the light blinks red, fast. The trait's triggered ability carries a Loyalty
 --Collar Explosion behavior that blows the collar up on every client: an explosion on the
---token, the token hidden inside it, and char marks left on the floor.
+--token, the token hidden inside it, and char marks left on the floor. When several
+--collars are waiting on their prompts, a "Detonate All" banner accepts them together.
 --
 --The collar is drawn with token.frameOverride, which is display only: each client works it
 --out from the creature's modifiers, and the token's saved appearance is never touched.
@@ -548,3 +549,128 @@ end
 function ActivatedAbilityLoyaltyCollarExplosionBehavior:EditorItems(parentPanel)
     return {}
 end
+
+--------------------------------------------------------------------------------
+-- Detonate All
+--------------------------------------------------------------------------------
+
+--Each dying war dog asks before its collar goes off. When several die at once, a
+--banner offers to set off every waiting collar in one press. The rolls stay manual:
+--the casts start together and the sidebar shows their damage rolls one at a time.
+
+--True if this client answers the token's prompts and the Monster AI does not. The
+--AI accepts collars itself and rolls them automatically.
+--- @param token CharacterToken
+--- @return boolean
+local function AnswersCollarPrompts(token)
+    if not token.canControl or TokenPromptControllerId(token) ~= nil then
+        return false
+    end
+    --rawget: the Monster AI module may not be loaded.
+    local monsterAI = rawget(_G, "MonsterAI")
+    local rollsForCreature = monsterAI ~= nil and rawget(monsterAI, "RollsForCreature") or nil
+    return rollsForCreature == nil or not rollsForCreature(token.properties)
+end
+
+--True once this creature's collar is on its way: its cast is waiting to start, is
+--running here (usually waiting on its damage roll), or has already exploded.
+--- @param token CharacterToken
+--- @return boolean
+local function CollarGoingOff(token)
+    if g_exploded[token.charid] or ActivatedAbility.HasDeferredCastFor(token) then
+        return true
+    end
+    for co, info in pairs(ActivatedAbility.coroutineStorage) do
+        if coroutine.status(co) ~= "dead" and info.casterToken ~= nil and info.casterToken.valid
+            and info.casterToken.charid == token.charid and info.ability ~= nil then
+            for _, behavior in ipairs(info.ability.behaviors or {}) do
+                if behavior.typeName == "ActivatedAbilityLoyaltyCollarExplosionBehavior" then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+--The collar prompt to accept for each creature whose collar waits on this client, old
+--ones on bodies left on the map included (a collar prompt never expires). A creature
+--whose death was confirmed on two windows carries two prompts, but only one is listed:
+--a collar explodes once. One {token, triggerid} per creature.
+--- @return {token: CharacterToken, triggerid: string}[]
+local function OpenCollarPrompts()
+    local result = {}
+    for _, token in ipairs(dmhub.GetTokens{haveProperties = true}) do
+        local props = token.valid and token.properties or nil
+        local triggers = props ~= nil and props:GetAvailableTriggers(true) or nil
+        if triggers ~= nil and AnswersCollarPrompts(token) and not CollarGoingOff(token) then
+            ---@cast props creature
+            local openid = nil
+            local accepted = false
+            for id, trigger in pairs(triggers) do
+                if IsCollarTrigger(props, trigger.abilityGuid) then
+                    if trigger.triggered then
+                        accepted = true
+                    elseif openid == nil then
+                        openid = id
+                    end
+                end
+            end
+            if openid ~= nil and not accepted then
+                result[#result+1] = { token = token, triggerid = openid }
+            end
+        end
+    end
+    return result
+end
+
+--Tip banner notice. Ranked just below choosing minion deaths (1100): a minion's
+--collar only asks once its death is chosen.
+Tip = rawget(_G, "Tip") or {}
+Tip.notices = Tip.notices or {}
+Tip.notices["detonate-loyalty-collars"] = {
+    id = "detonate-loyalty-collars",
+    priority = 1090,
+    text = function()
+        --No Director to press it (Encounter of the Week): monsters there are the
+        --Monster AI's, and the host is a player who must not answer for them.
+        if dmhub.directorlessPlay == true then
+            return nil
+        end
+
+        local count = #OpenCollarPrompts()
+        if count == 0 then
+            return nil
+        end
+
+        local text = "A loyalty collar is ready to detonate"
+        if count > 1 then
+            text = string.format("%d loyalty collars are ready to detonate", count)
+        end
+
+        return text, {
+            action = {
+                text = "Detonate All",
+                press = function()
+                    --Look the prompts up again: some may have been answered since the banner last
+                    --checked. Accept each only once: a collar accepted twice leaves two casts stuck
+                    --waiting on each other.
+                    for _, entry in ipairs(OpenCollarPrompts()) do
+                        local token = entry.token
+                        token:ModifyProperties{
+                            description = "Detonate Loyalty Collars",
+                            undoable = false,
+                            execute = function()
+                                local trigger = (token.properties:GetAvailableTriggers(true) or {})[entry.triggerid]
+                                if trigger ~= nil and not trigger.triggered then
+                                    trigger.triggered = true
+                                    token.properties:DispatchAvailableTrigger(trigger)
+                                end
+                            end,
+                        }
+                    end
+                end,
+            },
+        }
+    end,
+}
